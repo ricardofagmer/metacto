@@ -4,9 +4,10 @@ import { DataSourceOptions } from 'typeorm';
 import { ENTITIES } from './entities';
 import { InitialSchema1759780000000 } from './migrations/1759780000000-initial-schema';
 import { FeatureRequestDecisions1759790000000 } from './migrations/1759790000000-feature-request-decisions';
+import { RelabelLegacyProvider1759800000000 } from './migrations/1759800000000-relabel-legacy-provider';
 
 const POSTGRES_URL_PATTERN = /^postgres(ql)?:\/\//;
-const MIGRATIONS = [InitialSchema1759780000000, FeatureRequestDecisions1759790000000];
+const MIGRATIONS = [InitialSchema1759780000000, FeatureRequestDecisions1759790000000, RelabelLegacyProvider1759800000000];
 
 // DATABASE_URL selects the driver (ADR 0002); synchronize stays off so migrations are the only schema path.
 export function buildDataSourceOptions(databaseUrl: string): DataSourceOptions {

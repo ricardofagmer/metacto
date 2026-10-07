@@ -19,11 +19,11 @@ Open `http://localhost:3000`, turn **PM mode** on in the header and type a name 
 
 Decide up front which path to record and say which one on camera:
 
-- **Heuristic path** (no `ANTHROPIC_API_KEY`): deterministic, no network, every
+- **Heuristic path** (no `GEMINI_API_KEY`): deterministic, no network, every
   badge reads `Rule-based (heuristic)`.
-- **Anthropic path** (`ANTHROPIC_API_KEY=sk-... pnpm --filter @fis/api dev`): the
-  header badge reads `AI - anthropic`; artefact badges add the model id, for
-  example `AI - anthropic claude-sonnet-5-5`. This path has not been run live from
+- **Gemini path** (`GEMINI_API_KEY=... pnpm --filter @fis/api dev`): the
+  header badge reads `AI - gemini`; artefact badges add the model id, for
+  example `AI - gemini gemini-2.5-flash`. This path has not been run live from
   this repository; rehearse it before recording. Each AI call counts against
   `AI_DAILY_CALL_BUDGET` (default 500 per process per day), and the submit and AI
   endpoints are limited to 20 requests per minute per IP by default.
@@ -39,9 +39,9 @@ Decide up front which path to record and say which one on camera:
 | 2:40 | Cluster | Themes page, "Re-cluster". Identity, reporting, notifications, integrations, mobile themes appear with summaries and member lists. Say: clustering groups, it never changes a status |
 | 3:05 | Merge | Back on the request detail page of your Okta request, in PM mode: "Merge into" the existing "SSO via Okta" request with a one-line note and the confirmation checkbox. The source becomes `merged`, its votes move to the target, and a row is appended to `feature_request_decisions`. Say: there is no unmerge; a person decided this |
 | 3:25 | Brief, approve, draft | On a theme card (or the top triage item): "Generate decision brief". Read recommendation, evidence, risks, open questions. Approve with a one-line note. "Draft update for requesters": edit a sentence, mark approved. Say: nothing was sent; the system drafts, a person sends. An approved draft can no longer be edited (409) |
-| 3:55 | Architecture and tradeoffs | The mermaid diagram from the README. Port, two adapters, one side-effect-free tool per call, zod validation with one corrective retry, request text as escaped data, scores computed app-side, provider label everywhere. SQLite default; no auth; per-IP rate limit and a daily AI call budget, both in-process memory; Anthropic path not yet run live; three near-miss violations in the eval |
+| 3:55 | Architecture and tradeoffs | The mermaid diagram from the README. Port, two adapters, one forced side-effect-free Gemini function call per request, zod validation with one corrective retry, request text as escaped data, scores computed app-side, provider label everywhere. SQLite default; no auth; per-IP rate limit and a daily AI call budget, both in-process memory; Gemini path not yet run live; three near-miss violations in the eval |
 | 4:30 | AI in development | PRD, tickets, ADRs, spec, frozen contracts, parallel agents with disjoint scopes, `prompts.txt`, the security review (`docs/security-review.md`). Then `pnpm --filter @fis/api eval` in a terminal: show `apps/api/evals/RESULTS.md`, including the two failing dedupe cases |
-| 4:55 | Close | What you would do next with production data: measure the three metrics, run `pnpm --filter @fis/api eval:anthropic`, add authentication before any exposure beyond a trusted network |
+| 4:55 | Close | What you would do next with production data: measure the three metrics, run `pnpm --filter @fis/api eval:gemini`, add authentication before any exposure beyond a trusted network |
 
 ## Commands used
 
@@ -51,4 +51,4 @@ Decide up front which path to record and say which one on camera:
 | `pnpm --filter @fis/api seed` | `apps/api/package.json` (`nest build && node dist/database/seed/seed.js`) |
 | `pnpm dev` | root `package.json` (`pnpm --filter @fis/shared build && pnpm -r --parallel dev`) |
 | `pnpm --filter @fis/api eval` | `apps/api/package.json`, heuristic golden set, offline |
-| `pnpm --filter @fis/api eval:anthropic` | `apps/api/package.json`, requires `ANTHROPIC_API_KEY` |
+| `pnpm --filter @fis/api eval:gemini` | `apps/api/package.json`, requires `GEMINI_API_KEY` |

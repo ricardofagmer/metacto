@@ -22,10 +22,13 @@ verified from the code, it says so.
 
 - **No dependency CVE audit was run.** Neither `pnpm audit` nor any scanner output
   exists in the repository. The lockfile is pinned; nothing more is claimed.
-- **The Anthropic path was never run live.** Everything said about the model path
-  is from reading `apps/api/src/intelligence/providers/anthropic/**`; no request
-  has been sent to the API from this repository (`apps/api/evals/RESULTS.anthropic.md`
-  does not exist).
+- **The Gemini path was never run live.** Everything said about the model path
+  is from reading `apps/api/src/intelligence/providers/gemini/**`; no request
+  has been sent to the API from this repository (`apps/api/evals/RESULTS.gemini.md`
+  does not exist). The review was written against the earlier Anthropic adapter;
+  the provider was changed to Gemini on 2026-10-06 and the findings that concern
+  spend, prompt delimiting and output validation are provider-independent, but the
+  Gemini adapter code itself was not re-reviewed here.
 - No penetration test, no fuzzing, no load test. The rate limiter and the daily
   budget are verified by reading, not by exercising.
 - Deployment configuration: there is none (no Docker, no CI), so TLS termination,
@@ -35,7 +38,7 @@ verified from the code, it says so.
 
 | ID | Severity | Finding | Outcome |
 |---|---|---|---|
-| F1 | HIGH | **AI cost amplification.** With `ANTHROPIC_API_KEY` set, five unauthenticated endpoints spend model tokens on demand. The only bounds were body size, zod field lengths, the 500-request corpus cap, the 40-candidate pool and per-call `max_tokens`. | Mitigated, not fixed: per-IP rate limit and a daily call budget (fixes 1 and 2). Still not bound to a caller identity. By design (ADR 0005). |
+| F1 | HIGH | **AI cost amplification.** With `GEMINI_API_KEY` set, five unauthenticated endpoints spend model tokens on demand. The only bounds were body size, zod field lengths, the 500-request corpus cap, the 40-candidate pool and the per-call output-token cap. | Mitigated, not fixed: per-IP rate limit and a daily call budget (fixes 1 and 2). Still not bound to a caller identity. By design (ADR 0005). |
 | F2 | HIGH | **Anonymous merge, status and approval power.** `POST /feature-requests/:id/merge`, `PATCH /feature-requests/:id/status`, `PATCH /briefs/:id/decision` and `PATCH /drafts/:id` accept a self-declared `decidedBy` / `updatedBy`. A merge moves votes and marks the source `merged`; there is no unmerge endpoint. | Accepted by design (ADR 0005). Partially mitigated by the append-only decision log (fix 6) and the content-type gate (fix 3), which stops cross-site forms from issuing these calls from a victim's browser. The merge is still irreversible and the name is still unverified. |
 | F3 | MEDIUM | **Vote stuffing.** `VoterKey` is any string of 8 to 64 characters (`packages/shared/src/vote.ts`); `(featureRequestId, voterKey)` uniqueness is the only control. Scripted votes raise `demand` (`voteCount / maxVoteCount`), which carries a 15 percent weight in `SCORING_WEIGHTS`. | Accepted, not fixed. Bounded only by the global rate limit (120 requests per minute per IP by default). Production path: `voterKey` replaced by the user id. |
 | F4 | MEDIUM | **Cross-site simple requests to bodiless endpoints.** `POST /intelligence/analyze/:id` and `POST /intelligence/cluster` took no body, so a cross-site form or no-cors `fetch` could trigger them without a preflight. | Fixed (fix 3). |
@@ -94,7 +97,7 @@ counts), and once `AI_DAILY_CALL_BUDGET` (default 500) is reached every capabili
 is served by `HeuristicProvider` for the rest of the day, with the output labelled
 `provider: 'heuristic'`. The first exhaustion each day logs
 `intelligence.daily_budget_exhausted`. `AI_DAILY_CALL_BUDGET=0` disables the
-Anthropic path while leaving the key configured. When no key is set the boot
+Gemini path while leaving the key configured. When no key is set the boot
 provider already is the heuristic and nothing is metered.
 
 Limitations:
@@ -104,10 +107,10 @@ Limitations:
 - **`GET /health` still reports the boot-time provider**
   (`HealthService` reads `IntelligenceInfoService.activeProvider()`, which wraps
   the unbudgeted `INTELLIGENCE_SERVICE`). After exhaustion the header badge says
-  `anthropic` while every new artefact says `heuristic`. The artefact label is the
+  `gemini` while every new artefact says `heuristic`. The artefact label is the
   honest one.
-- The budget is a count of calls, not of tokens or money; per-call `max_tokens`
-  is the only token bound.
+- The budget is a count of calls, not of tokens or money; the per-call
+  output-token cap is the only token bound.
 
 ### 3. JSON content-type gate
 
@@ -214,7 +217,7 @@ already immutable the same way (`BriefsService`).
   not redacted.
 - `feature_request_decisions` is append-only by convention in code; the database
   does not enforce it.
-- Dependencies were not audited for CVEs; the Anthropic path was not run live.
+- Dependencies were not audited for CVEs; the Gemini path was not run live.
 
 Do not expose this deployment beyond a trusted network without closing at least
 the first two.

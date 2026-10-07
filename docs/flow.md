@@ -6,8 +6,8 @@ no AI endpoint changes a request status, a merge link, a brief decision or a dra
 ```mermaid
 flowchart TD
     A[Submitter posts title + description] --> B[POST /feature-requests]
-    B --> C{Anthropic available and daily budget left?}
-    C -- yes --> D[AnthropicProvider: dedupe via tool-use, zod-validated]
+    B --> C{Gemini available and daily budget left?}
+    C -- yes --> D[GeminiProvider: dedupe via forced function call, zod-validated]
     C -- no or unavailable --> E[HeuristicProvider: TF-IDF, calibrated threshold]
     D --> F[Duplicate candidates + provider label]
     E --> F
@@ -36,6 +36,6 @@ flowchart TD
 
 ## Reading the diagram
 
-- Provider label: every AI artefact carries `provider` (`anthropic` or `heuristic`) and the UI shows it.
-- Fallback: the heuristic path is used when no API key is set, when the Anthropic call fails after one corrective retry, or when the daily call budget is exhausted.
+- Provider label: every AI artefact carries `provider` (`gemini` or `heuristic`) and the UI shows it.
+- Fallback: the heuristic path is used when no API key is set, when the Gemini call fails after one corrective retry, or when the daily call budget is exhausted.
 - Rate limits: submit and every AI endpoint are on the strict per-IP limit (see `docs/security-review.md`).

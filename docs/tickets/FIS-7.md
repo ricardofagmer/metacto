@@ -28,7 +28,7 @@ There is no `GET /themes/:id` endpoint.
 - [x] Each theme has `name`, `summary`, `requestIds` and `provider`. A distinct-submitter count is not computed.
 - [x] Re-clustering replaces membership atomically; a provider failure throws before the transaction, leaving the previous clustering intact.
 - [x] Heuristic clustering groups the golden corpus' duplicate pairs together (`apps/api/evals/RESULTS.md`, cluster rows). It has not been checked against the five seeded themes specifically.
-- [x] Theme result records `provider` (and `model` for Anthropic).
+- [x] Theme result records `provider` (and `model` for Gemini).
 
 ## Dependencies
 

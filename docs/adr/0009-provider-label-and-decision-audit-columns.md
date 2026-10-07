@@ -19,7 +19,7 @@ Two gaps were found while implementing ADR 0003 and ADR 0004 against the spec:
 ## Decision
 
 **Provider label.** Every AI artefact and every response that carries one names
-its provider, and `model` is present if and only if the provider is `anthropic`:
+its provider, and `model` is present if and only if the provider is `gemini`:
 
 - `Analysis`, `Theme`, `DecisionBrief`, `StakeholderDraft` carry `provider` (and
   `model`, `promptVersion` where stored). `refineModelMatchesProvider`
@@ -28,7 +28,7 @@ its provider, and `model` is present if and only if the provider is `anthropic`:
 - `CreateFeatureRequestResponse` gained a top-level `provider`
   (`packages/shared/src/api.ts`), set from the `findDuplicates` output that
   actually produced the candidates, so a heuristic fallback on submit is labelled
-  `heuristic` even when Anthropic is the configured provider. When both providers
+  `heuristic` even when Gemini is the configured provider. When both providers
   fail, candidates are empty and `provider` is the last provider that failed
   (`FeatureRequestsService.findDuplicatesFor`).
 - `FeatureRequestListItem` gained `priorityProvider` and `priorityModel`, present
@@ -36,7 +36,7 @@ its provider, and `model` is present if and only if the provider is `anthropic`:
 - `ClusterResponse` and `HealthResponse` carry `provider`.
 - The web app renders the label through one component, `ProviderBadge`
   (`apps/web/src/components/ui/provenance.tsx`): `Rule-based (heuristic)` or
-  `AI - anthropic <model>`. The triage list, request detail, themes, briefs,
+  `AI - gemini <model>`. The triage list, request detail, themes, briefs,
   drafts, the submit result and the header health badge all use it.
 
 **Decision audit columns.** `feature_requests` has nullable `decided_by`,
@@ -95,3 +95,11 @@ still hold the latest decision.
   `FeatureRequestDecisionsRepository` exposes only `append`; no code path updates
   or deletes a row. The database itself grants no such protection: a direct SQL
   session can edit the table. No endpoint reads the table yet.
+
+## Amendment (2026-10-06, provider changed to Gemini)
+
+The first provider label changed from `anthropic` to `gemini` (ADR 0003). Migration
+`1759800000000-relabel-legacy-provider` relabels any existing row with
+`provider = 'anthropic'` to `gemini`. It keeps the stored `claude-*` model id, so such a
+row now reads `gemini` with a Claude model id: a provenance caveat, since the label
+no longer names the engine that actually produced that artefact.

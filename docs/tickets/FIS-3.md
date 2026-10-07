@@ -20,7 +20,7 @@ a voter name. Search is a case-insensitive `LIKE '%q%'` over title and
 description, not full-text. Requests have no `source` field. After the security
 review (`docs/security-review.md`) the backend gained `security/` (per-IP
 fixed-window rate limit as a global guard, JSON content-type gate, fixed-message
-body-parser rejections, security headers) and `ai-budget/` (daily Anthropic call
+body-parser rejections, security headers) and `ai-budget/` (daily Gemini call
 budget with heuristic fallback), configured by `THROTTLE_WINDOW_SECONDS`,
 `THROTTLE_LIMIT`, `THROTTLE_STRICT_LIMIT` and `AI_DAILY_CALL_BUDGET` in
 `env.schema.ts`. Status changes append a row to `feature_request_decisions` in
@@ -31,7 +31,7 @@ the same transaction.
 - [x] Create, get, list (paginated, default 20, max 100, filter by `status` and `themeId`, `q` search, sort `recent|votes|priority` with unanalysed requests last) and `PATCH /:id/status` endpoints exist with zod request and response schemas from `@fis/shared`.
 - [x] `POST /:id/votes` rejects a second vote from the same `voterKey` with `conflict`; `DELETE /:id/votes` removes it.
 - [x] Status is only changed through the status endpoint (and `merged` only through the merge endpoint); no AI path writes it.
-- [x] Config fails startup on an invalid variable; every variable has a default except `ANTHROPIC_API_KEY`, which is optional.
+- [x] Config fails startup on an invalid variable; every variable has a default except `GEMINI_API_KEY`, which is optional.
 - [x] `ZodValidationPipe` with `.strict()` schemas rejects unknown keys; `GlobalExceptionFilter` returns `{ statusCode, code, message, correlationId }`; `dependency` errors return a generic 503 message.
 - [x] `POST /feature-requests` carries `@StrictRateLimit()`; every endpoint is under the global per-IP limit; 429 responses carry `Retry-After`.
 

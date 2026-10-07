@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-5-5';
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 export const DEFAULT_DATABASE_URL = './data/fis.sqlite';
 export const DEFAULT_PORT = 3001;
 export const DEFAULT_WEB_ORIGIN = 'http://localhost:3000';
@@ -22,8 +22,8 @@ const optionalText = z
   .transform((value) => (value === undefined || value.length === 0 ? undefined : value));
 
 export const EnvSchema = z.object({
-  ANTHROPIC_API_KEY: optionalText,
-  ANTHROPIC_MODEL: optionalText.transform((value) => value ?? DEFAULT_ANTHROPIC_MODEL),
+  GEMINI_API_KEY: optionalText,
+  GEMINI_MODEL: optionalText.transform((value) => value ?? DEFAULT_GEMINI_MODEL),
   DATABASE_URL: optionalText.transform((value) => value ?? DEFAULT_DATABASE_URL),
   PORT: optionalText.pipe(z.coerce.number().int().min(1).max(MAX_PORT).default(DEFAULT_PORT)),
   WEB_ORIGIN: optionalText.pipe(z.string().url().default(DEFAULT_WEB_ORIGIN)),
@@ -32,7 +32,7 @@ export const EnvSchema = z.object({
   ),
   THROTTLE_LIMIT: optionalText.pipe(z.coerce.number().int().min(1).max(MAX_THROTTLE_LIMIT).default(DEFAULT_THROTTLE_LIMIT)),
   THROTTLE_STRICT_LIMIT: optionalText.pipe(z.coerce.number().int().min(1).max(MAX_THROTTLE_LIMIT).default(DEFAULT_THROTTLE_STRICT_LIMIT)),
-  // 0 disables the Anthropic path entirely while keeping the key configured.
+  // 0 disables the Gemini path entirely while keeping the key configured.
   AI_DAILY_CALL_BUDGET: optionalText.pipe(
     z.coerce.number().int().min(0).max(MAX_AI_DAILY_CALL_BUDGET).default(DEFAULT_AI_DAILY_CALL_BUDGET),
   ),

@@ -55,9 +55,9 @@ restated here as the code now behaves. Each item names the code it was read from
   `POST /briefs/:id/drafts`. Exceeding either returns 429 with code `rate_limited`
   and a `Retry-After` header. The `rate_limited` code is no longer reserved.
 - **AI spend is capped per day, not per caller.** `DailyCallBudget`
-  (`apps/api/src/ai-budget/daily-call-budget.ts`) counts Anthropic calls per UTC
+  (`apps/api/src/ai-budget/daily-call-budget.ts`) counts Gemini calls per UTC
   day in process memory; past `AI_DAILY_CALL_BUDGET` (default 500, `0` disables
-  the Anthropic path) `BudgetedIntelligence` routes every capability to the
+  the Gemini path) `BudgetedIntelligence` routes every capability to the
   heuristic provider, labelled `heuristic`. This bounds the bill an anonymous
   caller can run up; it does not identify the caller.
 - **Cross-site simple requests are blocked.** `jsonContentTypeMiddleware`

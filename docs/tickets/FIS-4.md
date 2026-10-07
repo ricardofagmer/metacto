@@ -17,7 +17,7 @@ onto the port's threshold scale, ADR 0008) for duplicates, agglomerative
 clustering over the same vectors, documented keyword rules for scoring, regex
 patterns for the underlying need, templates for briefs and drafts. Provider
 selection at boot in `intelligence.module.ts` by presence of
-`ANTHROPIC_API_KEY`; the heuristic provider is also registered under
+`GEMINI_API_KEY`; the heuristic provider is also registered under
 `HEURISTIC_INTELLIGENCE_SERVICE` for the submit-time fallback.
 
 Reconciliation notes: the port is named `IntelligenceService`, not
@@ -33,7 +33,7 @@ and `promptVersion` (for the heuristic, the algorithm revision in
 - [x] Every port method returns an output whose `provider` equals the adapter's (`ensureValidOutput` validates against the output schema).
 - [x] Heuristic provider works with no network and no API key.
 - [x] Provider selection falls back to heuristic when no key is configured; every result is labelled `provider: 'heuristic'` and carries no `model`.
-- [x] Call log: the Anthropic adapter logs `intelligence.call` with capability, provider, model, promptVersion, attempt, latency, token counts and outcome, never request text. The heuristic provider does not log its calls.
+- [x] Call log: the Gemini adapter logs `intelligence.call` with capability, provider, model, promptVersion, attempt, latency, token counts and outcome, never request text. The heuristic provider does not log its calls.
 
 ## Dependencies
 

@@ -6,7 +6,7 @@ Status: accepted
 ## Context
 
 `FindDuplicatesInput.threshold` defaults to `DEFAULT_DUPLICATE_THRESHOLD = 0.6`
-(`packages/shared/src/intelligence-port.ts`). The prompt for the Anthropic adapter
+(`packages/shared/src/intelligence-port.ts`). The prompt for the Gemini adapter
 defines `similarity` as the model's confidence that two requests would be merged:
 0.8 or above for clear duplicates, 0.4 to 0.6 for related, below 0.3 for unrelated
 (`apps/api/prompts/dedupe.md`). The heuristic adapter measures TF-IDF cosine
@@ -44,7 +44,7 @@ every provider and the port contract does not change.
   threshold, so every returned candidate satisfies `similarity >= threshold`.
 - The rationale string still shows the raw cosine and states that it is a
   heuristic match, not a language-model judgement.
-- The Anthropic adapter's candidate preselection (`rankSimilarRequests` at
+- The Gemini adapter's candidate preselection (`rankSimilarRequests` at
   threshold 0, ADR 0003 amendments) stays on the raw cosine scale; only the
   heuristic provider's output is calibrated.
 - Changing the anchor, the tokenizer, the synonym table or the golden set means
@@ -60,7 +60,7 @@ every provider and the port contract does not change.
   scales, and the spec's separation targets (duplicates at or above 0.6, distinct
   pairs below 0.4) could not be checked uniformly across providers.
 - Lower the shared `DEFAULT_DUPLICATE_THRESHOLD` for both providers: it would make
-  the Anthropic adapter return "related but distinct" pairs (0.4 .. 0.6 by the
+  the Gemini adapter return "related but distinct" pairs (0.4 .. 0.6 by the
   prompt's own scale) as duplicates.
 - Blend cosine with title or description Jaccard, or add stem bigrams: every
   blend swept in `evals/README.md` reduced the duplicate/near-miss gap, because
@@ -74,7 +74,7 @@ every provider and the port contract does not change.
   (`evals/README.md`); it is a measured floor, not a quality claim. One golden
   near miss ("Reset password by SMS" vs the password-reset-email bug) is a known
   lexical limitation left in the golden set rather than tuned away.
-- A heuristic `similarity` of 0.6 and an Anthropic `similarity` of 0.6 now mean
+- A heuristic `similarity` of 0.6 and a Gemini `similarity` of 0.6 now mean
   "at the merge threshold" for both, but they are produced by different evidence;
   the provider label (ADR 0009) tells the reader which one applies.
 - The evals' "precision/recall at default threshold 0.6", near-miss and

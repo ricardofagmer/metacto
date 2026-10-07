@@ -1,11 +1,11 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { Content, FunctionCallingConfigMode, GenerateContentConfig, GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import { RequestSummary } from '@fis/shared';
 import { renderRequestBlock, renderTaggedData } from '../src/intelligence/prompts/prompt-data';
-import { toToolInputSchema } from '../src/intelligence/providers/anthropic/zod-json-schema';
+import { toGeminiParametersSchema } from '../src/intelligence/providers/gemini/gemini-json-schema';
 
 /**
- * LLM-as-judge for `analyze.underlyingNeed`, used only by `--provider=anthropic`. Keyword
+ * LLM-as-judge for `analyze.underlyingNeed`, used only by `--provider=gemini`. Keyword
  * inclusion stays the heuristic scorer: the heuristic quotes the requester verbatim, so exact
  * words are a fair test there, while a model paraphrases and keyword matching would fail a
  * correct answer ("eye strain" vs "visual fatigue").
@@ -37,15 +37,26 @@ const JudgeVerdict = z.object({
 });
 export type JudgeVerdict = z.infer<typeof JudgeVerdict>;
 
-const JUDGE_TOOL: Anthropic.Tool = {
-  name: 'record_need_verdict',
-  description: 'Record the grade for the candidate need. Has no side effects.',
-  input_schema: toToolInputSchema(JudgeVerdict),
+const JUDGE_FUNCTION_NAME = 'record_need_verdict';
+
+// Forced single function call, as in the provider, so the judge cannot answer in prose.
+const JUDGE_FUNCTION: Pick<GenerateContentConfig, 'tools' | 'toolConfig'> = {
+  tools: [
+    {
+      functionDeclarations: [
+        { name: JUDGE_FUNCTION_NAME, description: 'Record the grade for the candidate need. Has no side effects.', parametersJsonSchema: toGeminiParametersSchema(JudgeVerdict) },
+      ],
+    },
+  ],
+  toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.ANY, allowedFunctionNames: [JUDGE_FUNCTION_NAME] } },
 };
 
-const JUDGE_MAX_TOKENS = 1024;
+const JUDGE_MAX_OUTPUT_TOKENS = 1024;
+// Thinking tokens count against JUDGE_MAX_OUTPUT_TOKENS on Gemini; a small budget leaves room for the verdict.
+const JUDGE_THINKING_BUDGET_TOKENS = 256;
 const JUDGE_TIMEOUT_MS = 30_000;
-const JUDGE_TRANSPORT_RETRIES = 2;
+// SDK-level attempts, original included.
+const JUDGE_TRANSPORT_ATTEMPTS = 3;
 // One corrective retry, as in the provider: a judge that cannot produce a verdict fails the case.
 const JUDGE_MAX_ATTEMPTS = 2;
 
@@ -60,31 +71,33 @@ export type NeedJudgement = { passed: boolean; reason: string };
 export type NeedJudge = (input: NeedJudgeInput) => Promise<NeedJudgement>;
 
 export function createNeedJudge(options: { apiKey: string; model: string }): NeedJudge {
-  const client = new Anthropic({ apiKey: options.apiKey, timeout: JUDGE_TIMEOUT_MS, maxRetries: JUDGE_TRANSPORT_RETRIES });
+  const client = new GoogleGenAI({ apiKey: options.apiKey, httpOptions: { timeout: JUDGE_TIMEOUT_MS, retryOptions: { attempts: JUDGE_TRANSPORT_ATTEMPTS } } });
   return async (input) => {
-    const messages: Anthropic.MessageParam[] = [{ role: 'user', content: buildJudgeMessage(input) }];
+    const contents: Content[] = [{ role: 'user', parts: [{ text: buildJudgeMessage(input) }] }];
     for (let attempt = 1; attempt <= JUDGE_MAX_ATTEMPTS; attempt += 1) {
-      const response = await client.messages.create({
+      const response = await client.models.generateContent({
         model: options.model,
-        max_tokens: JUDGE_MAX_TOKENS,
-        system: JUDGE_SYSTEM,
-        messages,
-        tools: [JUDGE_TOOL],
-        tool_choice: { type: 'auto', disable_parallel_tool_use: true },
-        output_config: { effort: 'low' },
+        contents,
+        config: {
+          systemInstruction: JUDGE_SYSTEM,
+          maxOutputTokens: JUDGE_MAX_OUTPUT_TOKENS,
+          thinkingConfig: { thinkingBudget: JUDGE_THINKING_BUDGET_TOKENS },
+          ...JUDGE_FUNCTION,
+        },
       });
-      const toolUse = response.content.find((block): block is Anthropic.ToolUseBlock => block.type === 'tool_use' && block.name === JUDGE_TOOL.name);
-      const parsed = JudgeVerdict.safeParse(toolUse?.input);
+      const functionCall = response.functionCalls?.find((call) => call.name === JUDGE_FUNCTION_NAME);
+      const parsed = JudgeVerdict.safeParse(functionCall?.args);
       if (parsed.success) {
         return toJudgement(parsed.data);
       }
-      const correction = `No valid \`${JUDGE_TOOL.name}\` call was found. Call it exactly once with all four fields.`;
-      // A tool_use block must be answered by its tool_result, or the API rejects the next turn.
-      const feedback: Anthropic.MessageParam =
-        toolUse === undefined
-          ? { role: 'user', content: correction }
-          : { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse.id, is_error: true, content: correction }] };
-      messages.push({ role: 'assistant', content: response.content }, feedback);
+      const correction = `No valid \`${JUDGE_FUNCTION_NAME}\` call was found. Call it exactly once with all four fields.`;
+      // A function call must be answered by its functionResponse (same id and name).
+      const feedback: Content =
+        functionCall === undefined
+          ? { role: 'user', parts: [{ text: correction }] }
+          : { role: 'user', parts: [{ functionResponse: { id: functionCall.id, name: functionCall.name, response: { error: correction } } }] };
+      const modelTurn = response.candidates?.[0]?.content;
+      contents.push(...(modelTurn === undefined ? [] : [modelTurn]), feedback);
     }
     return { passed: false, reason: `judge gave no valid verdict after ${JUDGE_MAX_ATTEMPTS} attempts` };
   };

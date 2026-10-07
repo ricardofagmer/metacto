@@ -27,7 +27,7 @@ contract has recommendation, evidence, risks and open questions.
 - [ ] Every evidence item cites an existing request id, validated by the application. Not enforced; evidence is `string[]`.
 - [x] Brief status transitions are `draft -> approved` or `draft -> rejected`, PM-initiated only (`decidedBy` required).
 - [x] Decided briefs are immutable; a new draft is a new brief.
-- [x] Brief records `provider`, `model` (Anthropic only) and `promptVersion`.
+- [x] Brief records `provider`, `model` (Gemini only) and `promptVersion`.
 
 ## Dependencies
 

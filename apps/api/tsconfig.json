@@ -3,6 +3,9 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
+    // node20 lets the CommonJS output require @google/genai: its node typings resolve as ESM even
+    // though the package ships a require build, which node16 mode rejects (TS1479).
+    "module": "node20",
     "types": ["node"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

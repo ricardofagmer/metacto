@@ -10,7 +10,7 @@
 
 Reconciliation note: the demo script drops "weight change" and "mark-as-sent";
 neither exists (FIS-8, FIS-10). The eval commands are
-`pnpm --filter @fis/api eval` and `pnpm --filter @fis/api eval:anthropic`. The
+`pnpm --filter @fis/api eval` and `pnpm --filter @fis/api eval:gemini`. The
 README's "Five-minute Loom script" section was moved to `docs/demo.md` and the
 README links to it.
 

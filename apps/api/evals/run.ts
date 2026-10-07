@@ -2,8 +2,9 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { IntelligenceService } from '@fis/shared';
+import { DEFAULT_GEMINI_MODEL } from '../src/config/env.schema';
 import { PROMPT_VERSIONS } from '../src/intelligence/prompts/prompt-versions';
-import { AnthropicProvider } from '../src/intelligence/providers/anthropic/anthropic.provider';
+import { GeminiProvider } from '../src/intelligence/providers/gemini/gemini.provider';
 import { HeuristicProvider } from '../src/intelligence/providers/heuristic/heuristic.provider';
 import { HEURISTIC_VERSIONS } from '../src/intelligence/providers/heuristic/heuristic-versions';
 import { loadGoldenSet } from './golden.schema';
@@ -13,19 +14,18 @@ import { EvalRun, renderReport, summarizeRun } from './report';
 import { evaluateCluster, evaluateDedupe, evaluateNeed, evaluateScoring } from './scorers';
 
 /**
- * Golden-set runner: `tsx evals/run.ts --provider=heuristic|anthropic` (see evals/README.md).
- * The heuristic run is free and offline. The anthropic run spends real tokens (about 20 provider
- * calls plus 2 judge calls) and needs ANTHROPIC_API_KEY; ANTHROPIC_MODEL defaults to the API's
- * documented default and ANTHROPIC_JUDGE_MODEL to ANTHROPIC_MODEL.
+ * Golden-set runner: `tsx evals/run.ts --provider=heuristic|gemini` (see evals/README.md).
+ * The heuristic run is free and offline. The gemini run spends real tokens (about 20 provider
+ * calls plus 2 judge calls) and needs GEMINI_API_KEY; GEMINI_MODEL defaults to the API's
+ * documented default and GEMINI_JUDGE_MODEL to GEMINI_MODEL.
  */
-const DEFAULT_MODEL = 'claude-sonnet-5-5';
-const ProviderFlag = z.enum(['heuristic', 'anthropic']);
+const ProviderFlag = z.enum(['heuristic', 'gemini']);
 
 // This script is its own entry point, so it validates its own environment like the API config layer does.
 const ScriptEnv = z.object({
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_MODEL: z.string().min(1).default(DEFAULT_MODEL),
-  ANTHROPIC_JUDGE_MODEL: z.string().min(1).optional(),
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODEL: z.string().min(1).default(DEFAULT_GEMINI_MODEL),
+  GEMINI_JUDGE_MODEL: z.string().min(1).optional(),
 });
 
 type ProviderSetup = { provider: IntelligenceService; model: string | null; versions: string[]; needJudge?: NeedJudge };
@@ -40,15 +40,15 @@ function buildProvider(kind: z.infer<typeof ProviderFlag>): ProviderSetup {
     return { provider: new HeuristicProvider(), model: null, versions: Object.values(HEURISTIC_VERSIONS) };
   }
   const env = ScriptEnv.parse(process.env);
-  if (env.ANTHROPIC_API_KEY === undefined) {
-    throw new Error('--provider=anthropic needs ANTHROPIC_API_KEY');
+  if (env.GEMINI_API_KEY === undefined) {
+    throw new Error('--provider=gemini needs GEMINI_API_KEY');
   }
   return {
-    provider: new AnthropicProvider({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL }),
-    model: env.ANTHROPIC_MODEL,
+    provider: new GeminiProvider({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL }),
+    model: env.GEMINI_MODEL,
     versions: [...Object.values(PROMPT_VERSIONS), NEED_JUDGE_VERSION],
     // Only the model path is judged; the heuristic keeps keyword inclusion (see need-judge.ts).
-    needJudge: createNeedJudge({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_JUDGE_MODEL ?? env.ANTHROPIC_MODEL }),
+    needJudge: createNeedJudge({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_JUDGE_MODEL ?? env.GEMINI_MODEL }),
   };
 }
 
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
   const history = [...loadHistory(), summarizeRun(run)];
   const report = renderReport(run, history);
   saveHistory(history);
-  writeFileSync(join(__dirname, kind === 'heuristic' ? 'RESULTS.md' : 'RESULTS.anthropic.md'), report);
+  writeFileSync(join(__dirname, kind === 'heuristic' ? 'RESULTS.md' : 'RESULTS.gemini.md'), report);
   process.stdout.write(report);
 }
 

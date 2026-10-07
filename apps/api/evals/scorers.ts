@@ -117,7 +117,7 @@ export type NeedReport = {
 };
 
 // Keyword inclusion is the pass criterion without a judge (heuristic: it quotes the requester
-// verbatim). With a judge (anthropic only) the judge decides, and missing keywords are kept as
+// verbatim). With a judge (gemini only) the judge decides, and missing keywords are kept as
 // a diagnostic, because a model paraphrase can be right without the literal word.
 export async function evaluateNeed(provider: IntelligenceService, golden: GoldenSet, judge?: NeedJudge): Promise<NeedReport> {
   const cases: NeedReport['cases'] = [];

@@ -5,7 +5,7 @@
 | Status | Draft |
 | Date | 2026-10-06 |
 | Audience | Metacto technical assessment reviewers (technical recruiters, engineering leads) |
-| Stack | Next.js web app, NestJS API, SQLite by default / PostgreSQL via `DATABASE_URL` (ADR 0002), Anthropic API behind the `IntelligenceService` port |
+| Stack | Next.js web app, NestJS API, SQLite by default / PostgreSQL via `DATABASE_URL` (ADR 0002), Google Gemini API (Flash) behind the `IntelligenceService` port |
 | Related | `docs/tickets/README.md` (work breakdown), `docs/adr/` (architecture decisions), `docs/specs/2026-10-06-feature-intelligence-system.md` (frozen contracts) |
 
 This document describes what the system was intended to do and is kept as the
@@ -84,15 +84,15 @@ human decision.
 
 ## 4. AI architecture
 
-**Chosen: a tool-use LLM with schema-validated structured output, behind a
+**Chosen: an LLM (Gemini Flash) with schema-validated structured output, behind a
 provider port, with a deterministic heuristic fallback.**
 
 - `@fis/shared` defines the `IntelligenceService` port (interface) with one
   method per capability: `findDuplicates`, `analyze` (need extraction plus
   candidates and priority in one call), `cluster`, `scorePriority`,
   `draftBrief`, `draftStakeholderMessage`.
-- The `AnthropicProvider` implements the port with Anthropic's Messages API,
-  tool-use for structured output, a JSON schema per capability, validation of
+- The `GeminiProvider` implements the port with the Gemini API (`@google/genai`),
+  forced function calling for structured output, a function schema per capability, validation of
   every response against that schema, retry with the validation error
   appended, and a timeout per call.
 - The `HeuristicProvider` implements the same port deterministically: token
@@ -172,7 +172,7 @@ Non-goals:
 | ID | Requirement |
 |---|---|
 | NFR-1 | Live duplicate hints respond within 2 s p95 for a queue of 1,000 requests, using lexical candidates before any model call. |
-| NFR-2 | Every model call has a timeout (default 20 s) and a `max_tokens` cap; no call hangs. |
+| NFR-2 | Every model call has a timeout (default 20 s) and an output-token cap; no call hangs. |
 | NFR-3 | Request text is treated as data in every prompt: delimited, and the system prompt instructs the model to ignore instructions inside it. |
 | NFR-4 | All model outputs are schema-validated before they are stored or shown. |
 | NFR-5 | Every model call is logged with capability, provider, model, prompt version, latency, token counts and outcome. No request text in logs. |
@@ -197,7 +197,7 @@ them with measured values; the targets are then re-examined.
 - Request volume is in the hundreds to low thousands, not millions; a
   relational database with full-text search is sufficient.
 - One product line and one team of PMs; no multi-tenancy.
-- The Anthropic API is available and budgeted for the demo; the heuristic
+- The Gemini API is available and budgeted for the demo; the heuristic
   fallback carries the demo without it.
 - Stakeholder communication happens over existing channels (email, CRM); the
   system drafts text and records that the PM marked it sent.
@@ -251,7 +251,7 @@ Each item names the ticket that records the detail.
   bounded instead by the per-IP rate limit and the daily call budget (FIS-7,
   FIS-9, `docs/security-review.md`).
 - FR-14: the golden set is smaller than the ticket asked for and has no
-  prompt-injection cases; the Anthropic run has not been executed in this
+  prompt-injection cases; the Gemini run has not been executed in this
   repository (FIS-14).
 - FIS-15: `README.md` and `docs/demo.md` exist; the demo script omits the "weight
   change" and "mark as sent" beats because neither feature exists.

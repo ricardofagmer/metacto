@@ -12,7 +12,7 @@ decision log added after the security review, `docs/security-review.md`).
 |---|---|---|
 | [0001](0001-pnpm-monorepo-nest-next-shared.md) | pnpm monorepo: NestJS API, Next.js web, shared package | accepted |
 | [0002](0002-sqlite-default-postgres-ready.md) | SQLite via TypeORM by default, Postgres via DATABASE_URL | accepted, amended 2026-10-06 |
-| [0003](0003-intelligence-port-two-providers.md) | AI behind an IntelligenceService port with Anthropic and heuristic adapters | accepted, amended 2026-10-06 |
+| [0003](0003-intelligence-port-two-providers.md) | AI behind an IntelligenceService port with Gemini and heuristic adapters | accepted, amended 2026-10-06 (provider changed from Anthropic to Gemini) |
 | [0004](0004-human-in-the-loop-boundary.md) | Human-in-the-loop decision states and agent autonomy boundary | accepted |
 | [0005](0005-no-auth-anonymous-voter-key.md) | No auth in scope: anonymous voterKey, PM role as UI toggle | accepted, amended 2026-10-06 |
 | [0006](0006-prompt-injection-stance.md) | Prompt-injection stance: request text is untrusted data | accepted |

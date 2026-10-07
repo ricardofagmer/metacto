@@ -10,11 +10,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed": "nest build && node dist/database/seed/seed.js",
     "eval": "tsx evals/run.ts --provider=heuristic",
-    "eval:anthropic": "tsx evals/run.ts --provider=anthropic"
+    "eval:gemini": "tsx evals/run.ts --provider=gemini"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.131.0",
     "@fis/shared": "workspace:*",
+    "@google/genai": "^2.27.0",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
