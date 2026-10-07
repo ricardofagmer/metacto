@@ -1,0 +1,409 @@
+{
+  "version": "golden@2",
+  "createdAt": "2026-10-06",
+  "notes": "Labels were written before any provider was run. Do not edit a label to make a provider pass; add a new case instead. golden@2 (2026-10-06): appended requests 18-22 and four dedupe cases (two paraphrase/identifier positives, two hard near-misses) before the heuristic dedupe recalibration was swept; no golden@1 label was changed.",
+  "corpus": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "title": "SSO via Okta",
+      "description": "Our IT team requires everyone to sign in through Okta single sign-on so that we can enforce company security policies and offboard people instantly.",
+      "voteCount": 40,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "title": "Okta login",
+      "description": "Please let us log in with our Okta accounts instead of separate passwords. Managing a second password for every employee is a security risk.",
+      "voteCount": 12,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "title": "Login with Google",
+      "description": "Allow users to sign in with their Google account so new people can join without creating another password.",
+      "voteCount": 9,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "title": "Export reports to CSV",
+      "description": "We need to export the monthly reports as CSV files so that our finance team can reconcile invoices without copying data by hand.",
+      "voteCount": 25,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "title": "Download dashboard data as a spreadsheet",
+      "description": "I want to download the report data from the dashboard into Excel so I can do my own analysis and share it with finance.",
+      "voteCount": 7,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "title": "Import contacts from CSV",
+      "description": "Let us upload a CSV file of contacts to create many contacts at once instead of adding them one by one.",
+      "voteCount": 6,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "title": "Dark mode",
+      "description": "Add a dark mode for the web app. Working late at night the bright white screen is hard on the eyes.",
+      "voteCount": 18,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000008",
+      "title": "Night theme to reduce eye strain",
+      "description": "A darker colour theme for night time use would reduce eye strain.",
+      "voteCount": 4,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000009",
+      "title": "Slack notifications for new comments",
+      "description": "Send a Slack message when someone comments on a task I follow so I don't miss feedback.",
+      "voteCount": 14,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "title": "Weekly email digest",
+      "description": "A weekly email summarising activity on my projects so I can catch up on Monday mornings.",
+      "voteCount": 8,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "title": "Two-factor authentication",
+      "description": "Add two-factor authentication to protect accounts. Our compliance audit requires it.",
+      "voteCount": 30,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "title": "2FA with an authenticator app",
+      "description": "Support 2FA codes from Google Authenticator or 1Password when logging in.",
+      "voteCount": 5,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "title": "Bulk edit tasks",
+      "description": "Select multiple tasks and change their status or assignee at once. Editing 50 tasks one by one takes hours.",
+      "voteCount": 20,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000014",
+      "title": "Change several tasks at the same time",
+      "description": "I want to update the status of many tasks in one action instead of opening each task.",
+      "voteCount": 3,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000015",
+      "title": "Change button color on settings page",
+      "description": "The save button on the settings page should be blue instead of grey. Minor cosmetic thing.",
+      "voteCount": 2,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000016",
+      "title": "Offline mode for mobile app",
+      "description": "Let field technicians use the mobile app offline and sync when they are back online.",
+      "voteCount": 10,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000017",
+      "title": "Fix broken password reset email",
+      "description": "Password reset emails never arrive, so users who forget their password are blocked and cannot log in. Customers are contacting support every day.",
+      "voteCount": 30,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000018",
+      "title": "Password reset emails are not arriving",
+      "description": "I clicked forgot password three times and no email ever came. I am locked out of my account until this works.",
+      "voteCount": 3,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000019",
+      "title": "Reset password by SMS",
+      "description": "Offer a text message code as an alternative way to reset a forgotten password, for users who no longer have access to their work email.",
+      "voteCount": 2,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "title": "Export tasks to PDF",
+      "description": "Print the task list of a project as a PDF document so we can attach it to client status updates.",
+      "voteCount": 4,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000021",
+      "title": "Recurring tasks",
+      "description": "Create tasks that repeat on a schedule, for example a compliance check every Monday or an invoice reminder each month.",
+      "voteCount": 11,
+      "status": "open"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000022",
+      "title": "Repeat a task every week",
+      "description": "I have to recreate the same task by hand each week. Let a task come back automatically on a weekly cycle.",
+      "voteCount": 2,
+      "status": "open"
+    }
+  ],
+  "dedupe": [
+    {
+      "name": "exact identifier: Okta login vs SSO via Okta",
+      "queryId": "00000000-0000-4000-8000-000000000002",
+      "expectedDuplicates": [
+        "00000000-0000-4000-8000-000000000001"
+      ],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000003"
+      ]
+    },
+    {
+      "name": "paraphrase: spreadsheet download vs CSV export",
+      "queryId": "00000000-0000-4000-8000-000000000005",
+      "expectedDuplicates": [
+        "00000000-0000-4000-8000-000000000004"
+      ],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000006"
+      ]
+    },
+    {
+      "name": "near miss: CSV import is not CSV export",
+      "queryId": "00000000-0000-4000-8000-000000000006",
+      "expectedDuplicates": [],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000004",
+        "00000000-0000-4000-8000-000000000005"
+      ]
+    },
+    {
+      "name": "paraphrase: night theme vs dark mode",
+      "queryId": "00000000-0000-4000-8000-000000000008",
+      "expectedDuplicates": [
+        "00000000-0000-4000-8000-000000000007"
+      ],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000015"
+      ]
+    },
+    {
+      "name": "near miss: email digest is not Slack notifications",
+      "queryId": "00000000-0000-4000-8000-000000000010",
+      "expectedDuplicates": [],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000009"
+      ]
+    },
+    {
+      "name": "identifier: 2FA app vs two-factor authentication",
+      "queryId": "00000000-0000-4000-8000-000000000012",
+      "expectedDuplicates": [
+        "00000000-0000-4000-8000-000000000011"
+      ],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000003",
+        "00000000-0000-4000-8000-000000000017"
+      ]
+    },
+    {
+      "name": "paraphrase: change several tasks vs bulk edit",
+      "queryId": "00000000-0000-4000-8000-000000000014",
+      "expectedDuplicates": [
+        "00000000-0000-4000-8000-000000000013"
+      ],
+      "mustNotMatch": []
+    },
+    {
+      "name": "near miss: Google login is not Okta SSO",
+      "queryId": "00000000-0000-4000-8000-000000000003",
+      "expectedDuplicates": [],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000002"
+      ]
+    },
+    {
+      "name": "identifier: reset emails not arriving vs broken reset email",
+      "queryId": "00000000-0000-4000-8000-000000000018",
+      "expectedDuplicates": [
+        "00000000-0000-4000-8000-000000000017"
+      ],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000019"
+      ]
+    },
+    {
+      "name": "near miss: SMS password reset is not the email bug",
+      "queryId": "00000000-0000-4000-8000-000000000019",
+      "expectedDuplicates": [],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000017",
+        "00000000-0000-4000-8000-000000000018"
+      ]
+    },
+    {
+      "name": "near miss: PDF task export is not CSV report export",
+      "queryId": "00000000-0000-4000-8000-000000000020",
+      "expectedDuplicates": [],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000004",
+        "00000000-0000-4000-8000-000000000005"
+      ]
+    },
+    {
+      "name": "paraphrase: weekly repeating task vs recurring tasks",
+      "queryId": "00000000-0000-4000-8000-000000000022",
+      "expectedDuplicates": [
+        "00000000-0000-4000-8000-000000000021"
+      ],
+      "mustNotMatch": [
+        "00000000-0000-4000-8000-000000000013",
+        "00000000-0000-4000-8000-000000000014"
+      ]
+    }
+  ],
+  "scoring": {
+    "maxVoteCount": 40,
+    "corpusSize": 17,
+    "cases": [
+      {
+        "name": "enterprise SSO",
+        "requestId": "00000000-0000-4000-8000-000000000001",
+        "underlyingNeed": "IT administrators need central control of who can access the product, to meet security policy and remove leavers immediately.",
+        "expectedBand": [
+          60,
+          90
+        ]
+      },
+      {
+        "name": "cosmetic button colour",
+        "requestId": "00000000-0000-4000-8000-000000000015",
+        "underlyingNeed": "A user prefers a different colour for one button.",
+        "expectedBand": [
+          10,
+          40
+        ]
+      },
+      {
+        "name": "report export for finance",
+        "requestId": "00000000-0000-4000-8000-000000000004",
+        "underlyingNeed": "Finance needs report data in a reusable format to reconcile invoices without manual copying.",
+        "expectedBand": [
+          45,
+          80
+        ]
+      },
+      {
+        "name": "offline mobile",
+        "requestId": "00000000-0000-4000-8000-000000000016",
+        "underlyingNeed": "Field technicians need to keep working without connectivity.",
+        "expectedBand": [
+          30,
+          65
+        ]
+      },
+      {
+        "name": "broken password reset",
+        "requestId": "00000000-0000-4000-8000-000000000017",
+        "underlyingNeed": "Users who forget their password cannot regain access, which blocks them and floods support.",
+        "expectedBand": [
+          55,
+          90
+        ]
+      }
+    ],
+    "orderings": [
+      [
+        "00000000-0000-4000-8000-000000000017",
+        "00000000-0000-4000-8000-000000000015"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000015"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000004",
+        "00000000-0000-4000-8000-000000000015"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000016"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000017",
+        "00000000-0000-4000-8000-000000000004"
+      ]
+    ]
+  },
+  "need": [
+    {
+      "name": "explicit goal phrase",
+      "requestId": "00000000-0000-4000-8000-000000000004",
+      "expectedKeywords": [
+        "reconcile",
+        "invoice"
+      ]
+    },
+    {
+      "name": "implicit goal",
+      "requestId": "00000000-0000-4000-8000-000000000007",
+      "expectedKeywords": [
+        "eye"
+      ]
+    }
+  ],
+  "cluster": {
+    "together": [
+      [
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000002"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000004",
+        "00000000-0000-4000-8000-000000000005"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000007",
+        "00000000-0000-4000-8000-000000000008"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000011",
+        "00000000-0000-4000-8000-000000000012"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000013",
+        "00000000-0000-4000-8000-000000000014"
+      ]
+    ],
+    "apart": [
+      [
+        "00000000-0000-4000-8000-000000000007",
+        "00000000-0000-4000-8000-000000000013"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000016"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000015",
+        "00000000-0000-4000-8000-000000000017"
+      ],
+      [
+        "00000000-0000-4000-8000-000000000004",
+        "00000000-0000-4000-8000-000000000011"
+      ]
+    ]
+  }
+}

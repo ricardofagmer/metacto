@@ -1,0 +1,94 @@
+[
+  {
+    "date": "2026-10-06T23:32:54.222Z",
+    "provider": "heuristic",
+    "model": null,
+    "goldenVersion": "golden@1",
+    "versions": [
+      "heuristic-analyze@1",
+      "heuristic-dedupe@1",
+      "heuristic-cluster@1",
+      "heuristic-score@1",
+      "heuristic-brief@1",
+      "heuristic-stakeholder@1"
+    ],
+    "dedupePrecision": null,
+    "dedupeRecall": 0,
+    "dedupeCases": {
+      "passed": 3,
+      "total": 8
+    },
+    "nearMissViolations": 0,
+    "separationChecks": {
+      "passed": 10,
+      "total": 15
+    },
+    "scoringBands": {
+      "passed": 5,
+      "total": 5
+    },
+    "scoringOrderings": {
+      "passed": 5,
+      "total": 5
+    },
+    "needScorer": "keyword-inclusion",
+    "need": {
+      "passed": 1,
+      "total": 2
+    },
+    "clusterTogether": {
+      "passed": 5,
+      "total": 5
+    },
+    "clusterApart": {
+      "passed": 4,
+      "total": 4
+    }
+  },
+  {
+    "date": "2026-10-06T23:40:55.122Z",
+    "provider": "heuristic",
+    "model": null,
+    "goldenVersion": "golden@2",
+    "versions": [
+      "heuristic-analyze@2",
+      "heuristic-dedupe@2",
+      "heuristic-cluster@1",
+      "heuristic-score@1",
+      "heuristic-brief@1",
+      "heuristic-stakeholder@2"
+    ],
+    "dedupePrecision": 0.7,
+    "dedupeRecall": 1,
+    "dedupeCases": {
+      "passed": 10,
+      "total": 12
+    },
+    "nearMissViolations": 3,
+    "separationChecks": {
+      "passed": 18,
+      "total": 24
+    },
+    "scoringBands": {
+      "passed": 5,
+      "total": 5
+    },
+    "scoringOrderings": {
+      "passed": 5,
+      "total": 5
+    },
+    "needScorer": "keyword-inclusion",
+    "need": {
+      "passed": 1,
+      "total": 2
+    },
+    "clusterTogether": {
+      "passed": 5,
+      "total": 5
+    },
+    "clusterApart": {
+      "passed": 4,
+      "total": 4
+    }
+  }
+]
