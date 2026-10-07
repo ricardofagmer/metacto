@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.next/
+*.sqlite
+.env
+*.tsbuildinfo
+*.sqlite-*
+apps/api/data/
+PROJECT_INDEX.json
+.claude/
+.engineos/changes/

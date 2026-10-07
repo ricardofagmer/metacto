@@ -1,0 +1,36 @@
+{
+  "name": "@fis/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Feature Intelligence System API (NestJS).",
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "seed": "nest build && node dist/database/seed/seed.js",
+    "eval": "tsx evals/run.ts --provider=heuristic",
+    "eval:anthropic": "tsx evals/run.ts --provider=anthropic"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@fis/shared": "workspace:*",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/typeorm": "^11.0.0",
+    "better-sqlite3": "^12.4.1",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.27",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.18.8",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}
