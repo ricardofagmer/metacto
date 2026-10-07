@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI } from '@google/genai';
 import {
   AnalyzeInput,
   AnalyzeOutput,
@@ -24,40 +24,40 @@ import { RequestText, buildRequestRefs } from '../../prompts/prompt-data';
 import { toStakeholderBriefView } from '../../prompts/stakeholder-brief.mapper';
 import { ensureValidOutput } from '../output-guard';
 import { rankSimilarRequests } from '../heuristic/heuristic-dedupe';
-import { buildBriefMessage, buildCandidateMessage, buildClusterMessage, buildScoreMessage, buildStakeholderMessage, describeWeights } from './anthropic-messages';
-import { checkCandidateRefs, checkThemeRefs, toDuplicateCandidates, toPriorityScore, toThemes } from './anthropic-output.mappers';
-import { AnthropicStructuredCaller } from './anthropic-structured-call';
-import { ANTHROPIC_TOOLS, MAX_TOKENS } from './anthropic-tools';
+import { buildBriefMessage, buildCandidateMessage, buildClusterMessage, buildScoreMessage, buildStakeholderMessage, describeWeights } from './gemini-messages';
+import { checkCandidateRefs, checkThemeRefs, toDuplicateCandidates, toPriorityScore, toThemes } from './gemini-output.mappers';
+import { GeminiStructuredCaller } from './gemini-structured-call';
+import { GEMINI_TOOLS, MAX_OUTPUT_TOKENS } from './gemini-tools';
 
-export type AnthropicProviderOptions = {
+export type GeminiProviderOptions = {
   apiKey: string;
   model: string;
 };
 
-const PROVIDER = 'anthropic';
+const PROVIDER = 'gemini';
 const REQUEST_TIMEOUT_MS = 30_000;
-// SDK-level retries with backoff for 408/409/429/5xx and connection errors.
-const TRANSPORT_RETRIES = 2;
+// SDK-level attempts, original included, with exponential backoff on 408/429/5xx.
+const TRANSPORT_ATTEMPTS = 3;
 // TF-IDF preselects this many candidates; the model judges only those, which bounds tokens per call.
 const CANDIDATE_POOL_SIZE = 40;
 
 type Prompts = Record<'analyze' | 'dedupe' | 'cluster' | 'score' | 'brief' | 'stakeholder', PromptTemplate>;
 
 /**
- * Anthropic adapter for the port (ADR 0003, 0006). One side-effect-free tool per call, output
+ * Gemini adapter for the port (ADR 0003, 0006). One forced side-effect-free function call, output
  * zod-validated with one corrective retry, request text delimited and escaped as data. Scores
  * are recomputed by the application from the model's per-criterion breakdown (ADR 0007).
  */
-export class AnthropicProvider implements IntelligenceService {
+export class GeminiProvider implements IntelligenceService {
   readonly provider = PROVIDER;
   readonly model: string;
-  private readonly caller: AnthropicStructuredCaller;
+  private readonly caller: GeminiStructuredCaller;
   private readonly prompts: Prompts;
 
-  constructor(options: AnthropicProviderOptions) {
+  constructor(options: GeminiProviderOptions) {
     this.model = options.model;
-    const client = new Anthropic({ apiKey: options.apiKey, timeout: REQUEST_TIMEOUT_MS, maxRetries: TRANSPORT_RETRIES });
-    this.caller = new AnthropicStructuredCaller({ client, model: options.model });
+    const client = new GoogleGenAI({ apiKey: options.apiKey, httpOptions: { timeout: REQUEST_TIMEOUT_MS, retryOptions: { attempts: TRANSPORT_ATTEMPTS } } });
+    this.caller = new GeminiStructuredCaller({ client, model: options.model });
     // Loaded at construction so a missing or mis-versioned prompt file fails the boot, not a request.
     this.prompts = {
       analyze: loadPrompt('analyze'),
@@ -71,7 +71,7 @@ export class AnthropicProvider implements IntelligenceService {
 
   async findDuplicates(input: FindDuplicatesInput): Promise<FindDuplicatesOutput> {
     const prompt = this.prompts.dedupe;
-    const tool = ANTHROPIC_TOOLS.findDuplicates;
+    const tool = GEMINI_TOOLS.findDuplicates;
     const pool = this.candidatePool(input.request, input.corpus);
     const refs = buildRequestRefs(pool.map((entry) => entry.id));
     const allowed = new Set(pool.map((entry) => refs.refOf(entry.id)));
@@ -81,7 +81,7 @@ export class AnthropicProvider implements IntelligenceService {
       system: renderTemplate(prompt.system, { toolName: tool.name }),
       userContent: buildCandidateMessage({ task: renderTemplate(prompt.task, { threshold: input.threshold, limit: input.limit }), target: input.request, candidates: pool, refs }),
       tool,
-      maxTokens: MAX_TOKENS.findDuplicates,
+      maxOutputTokens: MAX_OUTPUT_TOKENS.findDuplicates,
       checkSemantics: (result) => checkCandidateRefs(result.candidates, allowed),
     });
     const candidates = toDuplicateCandidates(output.candidates, refs, { threshold: input.threshold, limit: input.limit });
@@ -94,7 +94,7 @@ export class AnthropicProvider implements IntelligenceService {
 
   async analyze(input: AnalyzeInput): Promise<AnalyzeOutput> {
     const prompt = this.prompts.analyze;
-    const tool = ANTHROPIC_TOOLS.analyze;
+    const tool = GEMINI_TOOLS.analyze;
     const pool = this.candidatePool(input.request, input.corpus);
     const refs = buildRequestRefs(pool.map((entry) => entry.id));
     const allowed = new Set(pool.map((entry) => refs.refOf(entry.id)));
@@ -105,7 +105,7 @@ export class AnthropicProvider implements IntelligenceService {
       system: renderTemplate(prompt.system, { toolName: tool.name }),
       userContent: buildCandidateMessage({ task, target: input.request, candidates: pool, refs }),
       tool,
-      maxTokens: MAX_TOKENS.analyze,
+      maxOutputTokens: MAX_OUTPUT_TOKENS.analyze,
       checkSemantics: (result) => checkCandidateRefs(result.duplicateCandidates, allowed),
     });
     const voteCount = input.corpus.find((entry) => entry.id === input.request.id)?.voteCount ?? 0;
@@ -127,7 +127,7 @@ export class AnthropicProvider implements IntelligenceService {
 
   async scorePriority(input: ScorePriorityInput): Promise<ScorePriorityOutput> {
     const prompt = this.prompts.score;
-    const tool = ANTHROPIC_TOOLS.scorePriority;
+    const tool = GEMINI_TOOLS.scorePriority;
     const output = await this.caller.call({
       capability: 'scorePriority',
       promptVersion: prompt.version,
@@ -140,7 +140,7 @@ export class AnthropicProvider implements IntelligenceService {
         corpusSize: input.corpusSize,
       }),
       tool,
-      maxTokens: MAX_TOKENS.scorePriority,
+      maxOutputTokens: MAX_OUTPUT_TOKENS.scorePriority,
     });
     const priority = toPriorityScore({ breakdown: output.breakdown, rationale: output.rationale, voteCount: input.request.voteCount, maxVoteCount: input.maxVoteCount });
     return ensureValidOutput(
@@ -152,7 +152,7 @@ export class AnthropicProvider implements IntelligenceService {
 
   async cluster(input: ClusterInput): Promise<ClusterOutput> {
     const prompt = this.prompts.cluster;
-    const tool = ANTHROPIC_TOOLS.cluster;
+    const tool = GEMINI_TOOLS.cluster;
     const refs = buildRequestRefs(input.requests.map((request) => request.id));
     const allowed = new Set(input.requests.map((request) => refs.refOf(request.id)));
     const output = await this.caller.call({
@@ -161,7 +161,7 @@ export class AnthropicProvider implements IntelligenceService {
       system: renderTemplate(prompt.system, { toolName: tool.name }),
       userContent: buildClusterMessage(renderTemplate(prompt.task, { maxThemes: input.maxThemes }), input.requests, refs),
       tool,
-      maxTokens: MAX_TOKENS.cluster,
+      maxOutputTokens: MAX_OUTPUT_TOKENS.cluster,
       checkSemantics: (result) => checkThemeRefs(result, allowed, input.maxThemes),
     });
     const themes = toThemes(output, refs).map((theme) => ({ ...theme, provider: PROVIDER }));
@@ -170,7 +170,7 @@ export class AnthropicProvider implements IntelligenceService {
 
   async draftBrief(input: DraftBriefInput): Promise<DraftBriefOutput> {
     const prompt = this.prompts.brief;
-    const tool = ANTHROPIC_TOOLS.draftBrief;
+    const tool = GEMINI_TOOLS.draftBrief;
     const refs = buildRequestRefs(input.requests.map((request) => request.id));
     const output = await this.caller.call({
       capability: 'draftBrief',
@@ -184,7 +184,7 @@ export class AnthropicProvider implements IntelligenceService {
         refs,
       }),
       tool,
-      maxTokens: MAX_TOKENS.draftBrief,
+      maxOutputTokens: MAX_OUTPUT_TOKENS.draftBrief,
     });
     return ensureValidOutput(
       DraftBriefOutput,
@@ -195,7 +195,7 @@ export class AnthropicProvider implements IntelligenceService {
 
   async draftStakeholderMessage(input: DraftStakeholderInput): Promise<DraftStakeholderOutput> {
     const prompt = this.prompts.stakeholder;
-    const tool = ANTHROPIC_TOOLS.draftStakeholderMessage;
+    const tool = GEMINI_TOOLS.draftStakeholderMessage;
     const refs = buildRequestRefs(input.requests.map((request) => request.id));
     const output = await this.caller.call({
       capability: 'draftStakeholderMessage',
@@ -208,7 +208,7 @@ export class AnthropicProvider implements IntelligenceService {
         refs,
       }),
       tool,
-      maxTokens: MAX_TOKENS.draftStakeholderMessage,
+      maxOutputTokens: MAX_OUTPUT_TOKENS.draftStakeholderMessage,
     });
     return ensureValidOutput(
       DraftStakeholderOutput,

@@ -7,8 +7,9 @@ export type StructuredTool<Schema extends z.AnyZodObject> = {
   schema: Schema;
 };
 
-// One side-effect-free tool per capability (ADR 0006): it exists only to carry structured output.
-export const ANTHROPIC_TOOLS = {
+// One side-effect-free function declaration per capability (ADR 0006): it exists only to carry
+// structured output, and the call is forced, so the model cannot answer in prose instead.
+export const GEMINI_TOOLS = {
   findDuplicates: {
     name: 'record_duplicate_candidates',
     description: 'Record which candidate requests duplicate the target request. Has no side effects.',
@@ -42,7 +43,8 @@ export const ANTHROPIC_TOOLS = {
 } as const satisfies Record<string, StructuredTool<z.AnyZodObject>>;
 
 // Per-capability output ceilings (spec: 1024..4096); clustering lists every ref, so it gets the most.
-export const MAX_TOKENS = {
+// On Gemini thinking tokens count against this ceiling too, which is why the caller caps thinking.
+export const MAX_OUTPUT_TOKENS = {
   findDuplicates: 2048,
   analyze: 3072,
   scorePriority: 2048,

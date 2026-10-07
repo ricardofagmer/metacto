@@ -23,7 +23,7 @@ export async function HealthStatus() {
         <span aria-hidden="true" className={`h-2 w-2 rounded-full ${databaseUp ? 'bg-success' : 'bg-warning'}`} />
         {databaseUp ? 'API online' : 'Database down'}
       </Badge>
-      <Badge tone={health.provider === 'anthropic' ? 'ai' : 'heuristic'} title="Engine the API uses for AI features">
+      <Badge tone={health.provider === 'gemini' ? 'ai' : 'heuristic'} title="Engine the API uses for AI features">
         {providerLabel({ provider: health.provider })}
       </Badge>
     </div>

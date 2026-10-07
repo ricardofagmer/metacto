@@ -27,7 +27,7 @@ new draft row; it does not replace an existing one.
 - [x] Drafts can only be generated from an approved brief (`conflict` otherwise).
 - [ ] One draft per audience per brief with replace-on-regenerate. Not enforced; each generation inserts a new draft.
 - [ ] `sent_at` set by a mark-as-sent endpoint. Not implemented; `status: 'approved'` via `PATCH /drafts/:id` is the end state. No email or messaging dependency exists.
-- [x] Draft records `provider`, `model` (Anthropic only) and `promptVersion`.
+- [x] Draft records `provider`, `model` (Gemini only) and `promptVersion`.
 - [x] An approved draft is immutable: `PATCH /drafts/:id` on it returns 409 `conflict` (`StakeholderDraftsService.update`, added after the security review).
 
 ## Dependencies

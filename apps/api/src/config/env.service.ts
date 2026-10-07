@@ -20,12 +20,12 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 export class EnvService {
   constructor(private readonly env: Env) {}
 
-  get anthropicApiKey(): string | undefined {
-    return this.env.ANTHROPIC_API_KEY;
+  get geminiApiKey(): string | undefined {
+    return this.env.GEMINI_API_KEY;
   }
 
-  get anthropicModel(): string {
-    return this.env.ANTHROPIC_MODEL;
+  get geminiModel(): string {
+    return this.env.GEMINI_MODEL;
   }
 
   get databaseUrl(): string {

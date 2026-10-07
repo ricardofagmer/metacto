@@ -6,25 +6,25 @@ plus one summary row to `history.json`.
 | Command | Provider | Cost | Report |
 |---|---|---|---|
 | `tsx evals/run.ts --provider=heuristic` | in-process heuristic | free, offline | `RESULTS.md` |
-| `pnpm --filter @fis/api eval:anthropic` | Anthropic adapter | about 20 model calls plus 2 judge calls | `RESULTS.anthropic.md` |
+| `pnpm --filter @fis/api eval:gemini` | Gemini adapter | about 20 model calls plus 2 judge calls | `RESULTS.gemini.md` |
 
 Run the eval after every prompt, threshold, rule, tokenizer or model change, and commit the
 report and the new `history.json` row with the change.
 
-## The Anthropic path is not verified in CI
+## The Gemini path is not verified in CI
 
-This repository's CI has no `ANTHROPIC_API_KEY`, so the Anthropic adapter and the LLM judge have
-been typechecked but **never run against the live API here**. `RESULTS.anthropic.md` does not
-exist until someone runs it. Before trusting the Anthropic provider (or after changing any file in
+This repository's CI has no `GEMINI_API_KEY`, so the Gemini adapter and the LLM judge have
+been typechecked but **never run against the live API here**. `RESULTS.gemini.md` does not
+exist until someone runs it. Before trusting the Gemini provider (or after changing any file in
 `apps/api/prompts/`), run it locally:
 
 ```sh
-ANTHROPIC_API_KEY=... pnpm --filter @fis/api eval:anthropic
-# optional: ANTHROPIC_MODEL=<model id>  ANTHROPIC_JUDGE_MODEL=<model id>
+GEMINI_API_KEY=... pnpm --filter @fis/api eval:gemini
+# optional: GEMINI_MODEL=<model id>  GEMINI_JUDGE_MODEL=<model id>
 ```
 
-The `eval:anthropic` script is owned by the API package (`apps/api/package.json`); it runs
-`run.ts --provider=anthropic`. The key is read from the environment only and is never written to
+The `eval:gemini` script is owned by the API package (`apps/api/package.json`); it runs
+`run.ts --provider=gemini`. The key is read from the environment only and is never written to
 a report.
 
 ## Scorers
@@ -34,11 +34,11 @@ a report.
   (duplicates >= 0.6, distinct pairs < 0.4).
 - **scorePriority**: score inside the expected band, and rank agreement on ordered pairs.
 - **analyze (underlying need)**: the heuristic is scored by keyword inclusion, because it quotes
-  the requester verbatim. The Anthropic path is scored by an LLM judge (`need-judge.ts`,
+  the requester verbatim. The Gemini path is scored by an LLM judge (`need-judge.ts`,
   `need-judge@1`) on three criteria: grounded in the request, states the problem rather than the
   solution, covers the reference concepts in any wording. Missing keywords are still listed as a
   diagnostic. The judge defaults to the same model as the provider under test, which biases it
-  toward that model's own phrasing; set `ANTHROPIC_JUDGE_MODEL` to a different model when that
+  toward that model's own phrasing; set `GEMINI_JUDGE_MODEL` to a different model when that
   matters.
 - **cluster**: duplicate pairs share a theme, unrelated pairs do not.
 

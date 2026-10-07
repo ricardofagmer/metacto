@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { IntelligenceService, Provider } from '@fis/shared';
-import { AnthropicProvider } from './providers/anthropic/anthropic.provider';
+import { GeminiProvider } from './providers/gemini/gemini.provider';
 import { INTELLIGENCE_SERVICE } from './intelligence.tokens';
 
 export type ActiveIntelligence = {
@@ -18,7 +18,7 @@ export class IntelligenceInfoService {
   }
 
   describe(): ActiveIntelligence {
-    if (this.intelligence instanceof AnthropicProvider) {
+    if (this.intelligence instanceof GeminiProvider) {
       return { provider: this.intelligence.provider, model: this.intelligence.model };
     }
     return { provider: this.intelligence.provider };

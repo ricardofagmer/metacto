@@ -29,7 +29,7 @@ const MAX_SIMILARITY = 1;
  */
 export const HEURISTIC_COSINE_AT_DEFAULT_THRESHOLD = 0.267;
 
-// Also used by the Anthropic adapter to preselect a bounded candidate set before the model call,
+// Also used by the Gemini adapter to preselect a bounded candidate set before the model call,
 // so it stays on the raw cosine scale; only the heuristic provider's output is calibrated.
 export function rankSimilarRequests(options: RankSimilarOptions): RankedMatch[] {
   const others = options.corpus.filter((entry) => entry.id !== options.request.id);

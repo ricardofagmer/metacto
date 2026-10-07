@@ -6,7 +6,7 @@ export type Id = z.infer<typeof Id>;
 export const IsoDateTime = z.string().datetime();
 export type IsoDateTime = z.infer<typeof IsoDateTime>;
 
-export const Provider = z.enum(['anthropic', 'heuristic']);
+export const Provider = z.enum(['gemini', 'heuristic']);
 export type Provider = z.infer<typeof Provider>;
 
 export const ACTOR_NAME_MAX_LENGTH = 80;

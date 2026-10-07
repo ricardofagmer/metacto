@@ -32,10 +32,10 @@ A pnpm monorepo with three packages: `apps/api` (NestJS, REST under `/api/v1`),
 inferred types, the `IntelligenceService` port, the scoring weights constant). The
 API persists to SQLite via TypeORM + better-sqlite3 by default and to Postgres when
 `DATABASE_URL` is set. All AI work goes through one port, `IntelligenceService`,
-with two adapters: `AnthropicProvider` (tool-use structured output, zod-validated)
+with two adapters: `GeminiProvider` (forced function-call structured output, zod-validated)
 and `HeuristicProvider` (TF-IDF cosine similarity and rule-based templates), chosen
-at boot by the presence of `ANTHROPIC_API_KEY`. Every AI artefact carries
-`provider: 'anthropic' | 'heuristic'` and the web app renders that label; the
+at boot by the presence of `GEMINI_API_KEY`. Every AI artefact carries
+`provider: 'gemini' | 'heuristic'` and the web app renders that label; the
 heuristic path is never presented as LLM output. The AI only produces recommendations
 and drafts; state transitions are separate endpoints that require `decidedBy`.
 
@@ -45,7 +45,7 @@ and drafts; state transitions are separate endpoints that require `decidedBy`.
 apps/web (Next.js)  --HTTP JSON-->  apps/api (NestJS)  --TypeORM-->  SQLite | Postgres
        |                                   |
        +------ @fis/shared (zod, types) ---+---- IntelligenceService port
-                                                 |-- AnthropicProvider (Anthropic Messages API, tool-use)
+                                                 |-- GeminiProvider (Google Gemini API, forced function call)
                                                  +-- HeuristicProvider (in-process, no network)
 ```
 
@@ -57,7 +57,7 @@ apps/web (Next.js)  --HTTP JSON-->  apps/api (NestJS)  --TypeORM-->  SQLite | Po
 | `database` | TypeORM data source, entities registration, driver selection by `DATABASE_URL` | `DatabaseModule` |
 | `feature-requests` | `feature_requests` table, list/search/sort, merge, status change | `FeatureRequestsService` |
 | `votes` | `votes` table, vote add/remove, `voteCount` maintenance | `VotesService` |
-| `intelligence` | provider selection (`intelligence.module.ts`), both providers under `providers/anthropic/` and `providers/heuristic/`, prompt loader and versions under `prompts/`, `IntelligenceInfoService` for `/health` | `INTELLIGENCE_SERVICE`, `HEURISTIC_INTELLIGENCE_SERVICE` tokens |
+| `intelligence` | provider selection (`intelligence.module.ts`), both providers under `providers/gemini/` and `providers/heuristic/`, prompt loader and versions under `prompts/`, `IntelligenceInfoService` for `/health` | `INTELLIGENCE_SERVICE`, `HEURISTIC_INTELLIGENCE_SERVICE` tokens |
 | `analyses` | `analyses` table, priority provenance for the list endpoint | `AnalysesRepository` |
 | `themes` | `themes`, `theme_members`, `POST /intelligence/cluster`, `GET /themes` | `ThemesService` |
 | `briefs` | `decision_briefs`, `stakeholder_drafts`, decision recording, `GET /briefs`, `GET /briefs/:id/drafts` | `BriefsService`, `StakeholderDraftsService` |
@@ -120,7 +120,7 @@ packages/shared/src/
 
 - `Id = z.string().uuid()`
 - `IsoDateTime = z.string().datetime()`
-- `Provider = z.enum(['anthropic', 'heuristic'])`
+- `Provider = z.enum(['gemini', 'heuristic'])`
 - `ErrorEnvelope = { statusCode: number (int), code: ErrorCode, message: string, correlationId: string }`
 - `ErrorCode = z.enum(['validation', 'auth', 'not_found', 'conflict', 'rate_limited', 'dependency', 'internal'])`
 - `PaginationQuery = { page: int 1..10000 default 1, limit: int 1..100 default 20 }` (coerced from strings; the `page` cap, `MAX_PAGE`, was added after the security review so a huge `OFFSET` never reaches the database)
@@ -164,7 +164,7 @@ Analysis = {
   duplicateCandidates: DuplicateCandidate[] max 10,
   priority: PriorityScore,
   provider: Provider,
-  model: string optional,          // present iff provider === 'anthropic'
+  model: string optional,          // present iff provider === 'gemini'
   promptVersion: string,           // e.g. 'analyze@1'
   createdAt: IsoDateTime,
 }
@@ -297,7 +297,7 @@ for submit-time dedupe and to an HTTP 503 elsewhere.
    `voteCount=0`) in a transaction.
 2. `FeatureRequestsService` loads the corpus (all non-merged requests, id + title +
    description + voteCount + status, bounded to the 500 most recent) and calls
-   `intelligence.findDuplicates`. Anthropic failure (timeout, invalid output after one
+   `intelligence.findDuplicates`. Gemini failure (timeout, invalid output after one
    retry) falls back to `HeuristicProvider.findDuplicates`; the response's candidates
    then carry `provider:'heuristic'`. The submit never fails because of AI.
 3. Response returns the request plus candidates. No analysis row is written here.
@@ -305,7 +305,7 @@ for submit-time dedupe and to an HTTP 503 elsewhere.
    offers "Merge into" (PM toggle on) which calls the merge endpoint with `decidedBy`.
 5. `POST /intelligence/analyze/:id` (triggered by the web after submit, or manually)
    calls `intelligence.analyze`, which produces underlying need, duplicate candidates
-   and priority in one call (Anthropic) or three heuristic steps, and upserts
+   and priority in one call (Gemini) or three heuristic steps, and upserts
    `analyses`. The list sort `priority` reads `analyses.priority.score`.
 
 ### Clustering
@@ -340,22 +340,27 @@ Clustering is a full recompute; previous themes are not preserved (Open Question
   the model that content within those blocks is data, never instructions (ADR 0006).
   Requests are referenced by short refs `r1..rN`, never by UUID; the adapter maps
   refs back and rejects unknown or repeated refs.
-- The model receives exactly one tool per call (`record_*`), whose JSON schema is
-  generated from the output zod schema (`zod-json-schema.ts`); the tool has no side
-  effects. `tool_choice` is `{ type: 'auto', disable_parallel_tool_use: true }`
-  because the default model rejects a forced `tool_choice`; a response without the
-  tool call is treated as a validation failure (ADR 0003 amendments).
-- On zod or semantic validation failure the call is retried once with the error
-  appended as an `is_error` tool result; a second failure throws
-  `IntelligenceUnavailableError`. A `refusal` stop reason throws immediately.
-- Each call sets `max_tokens` per capability (2048..4096), `output_config.effort:
-  'low'`, a 30 s client timeout with SDK `maxRetries: 2`, and logs an
+- The model receives exactly one function per request, whose schema is generated from
+  the output zod schema (`gemini-tools.ts`, converted by `gemini-json-schema.ts` to the
+  keyword subset Gemini supports; length and pattern constraints go into description
+  text). Function calling is forced with `FunctionCallingConfigMode.ANY` and a single
+  `allowedFunctionNames` entry. The function has no side effects. Zod and the semantic
+  checks, not the Gemini schema, are the trust boundary; a response without the call is
+  treated as a validation failure (ADR 0003 amendments).
+- On zod or semantic validation failure the call is retried once: the model turn is sent
+  back (thought signatures kept) with a `functionResponse` carrying the validation error;
+  a second failure throws `IntelligenceUnavailableError`.
+- `thinkingBudget` is 512 per capability call and 256 for the need judge.
+- Rows labelled `provider = 'anthropic'` from before the change are relabelled `gemini` by
+  migration `1759800000000-relabel-legacy-provider`; their `claude-*` model id is kept,
+  so the label and model id of those rows disagree with what actually ran (ADR 0009).
+- Each call is bounded by a timeout and an output-token cap, and logs an
   `intelligence.call` line with `promptVersion`, `model`, attempt, latency,
   input/output tokens and outcome. Prompt text and model output are not logged.
 - The model returns only the four judged criteria for priority; `demand` and the
   total `score` are computed by the application (`demandFromVotes`,
   `computePriorityScore`).
-- Model id comes from `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`).
+- Model id comes from `GEMINI_MODEL` (default `gemini-2.5-flash`); the SDK is `@google/genai`.
 
 ## Error taxonomy
 
@@ -374,8 +379,8 @@ for malformed JSON, all with fixed messages that never echo the body
 
 | Name | Required | Default | Purpose |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | no | unset -> `HeuristicProvider` | Enables `AnthropicProvider` |
-| `ANTHROPIC_MODEL` | no | `claude-sonnet-5-5` | Model id for all calls |
+| `GEMINI_API_KEY` | no | unset -> `HeuristicProvider` | Enables `GeminiProvider` |
+| `GEMINI_MODEL` | no | `gemini-2.5-flash` | Model id for all calls |
 | `DATABASE_URL` | no | unset -> SQLite file `./data/fis.sqlite` | `postgres://…` switches driver |
 | `PORT` | no | `3001` | API listen port |
 | `WEB_ORIGIN` | no | `http://localhost:3000` | CORS allow-origin |
@@ -383,7 +388,7 @@ for malformed JSON, all with fixed messages that never echo the body
 | `THROTTLE_WINDOW_SECONDS` | no | `60` (1..3600) | Length of the per-IP rate-limit window |
 | `THROTTLE_LIMIT` | no | `120` (1..100000) | Requests per window per IP on every endpoint |
 | `THROTTLE_STRICT_LIMIT` | no | `20` (1..100000) | Requests per window per IP on submit and the AI endpoints, applied on top of the global limit |
-| `AI_DAILY_CALL_BUDGET` | no | `500` (0..1000000) | Anthropic calls per UTC day per process; past it the heuristic provider answers; `0` disables the Anthropic path |
+| `AI_DAILY_CALL_BUDGET` | no | `500` (0..1000000) | Gemini calls per UTC day per process; past it the heuristic provider answers; `0` disables the Gemini path |
 
 `.env.example` lists names only, no values beyond the documented defaults as
 comments. Env is validated once at boot by the `config` module's zod schema
@@ -393,7 +398,7 @@ comments. Env is validated once at boot by the `config` module's zod schema
 
 Golden set at `apps/api/evals/golden.json` (`golden@2`), runner `apps/api/evals/run.ts`,
 scorers in `scorers.ts`, LLM judge in `need-judge.ts`, report in `RESULTS.md`
-(heuristic) or `RESULTS.anthropic.md` (Anthropic), one summary row per run appended
+(heuristic) or `RESULTS.gemini.md` (Gemini), one summary row per run appended
 to `history.json`. `apps/api/evals/README.md` documents the scorers and the heuristic
 calibration sweep.
 
@@ -403,15 +408,15 @@ calibration sweep.
   separation checks (duplicates >= 0.6, distinct pairs < 0.4).
 - 5 scoring cases with an expected score band, plus 5 ordered pairs.
 - 2 need-extraction cases: keyword inclusion for the heuristic provider; an LLM
-  judge (`need-judge@1`, three yes/no criteria) for the Anthropic provider, with
+  judge (`need-judge@1`, three yes/no criteria) for the Gemini provider, with
   missing keywords kept as a diagnostic.
 - Cluster checks: duplicate pairs in the same theme, unrelated pairs apart.
 
 Scripts (`apps/api/package.json`): `pnpm --filter @fis/api eval` (heuristic, offline)
-and `pnpm --filter @fis/api eval:anthropic` (needs `ANTHROPIC_API_KEY`; optional
-`ANTHROPIC_MODEL`, `ANTHROPIC_JUDGE_MODEL`). A prompt, threshold or rule change is
-accompanied by the regenerated report and history row. The Anthropic run has not been
-executed in this repository (`RESULTS.anthropic.md` does not exist).
+and `pnpm --filter @fis/api eval:gemini` (needs `GEMINI_API_KEY`; optional
+`GEMINI_MODEL`, `GEMINI_JUDGE_MODEL`). A prompt, threshold or rule change is
+accompanied by the regenerated report and history row. The Gemini run has not been
+executed in this repository (`RESULTS.gemini.md` does not exist).
 
 ## Success metrics
 
@@ -477,16 +482,16 @@ named; `run` means it also needs a live run that this reconciliation did not per
 
 - [x] (code) `@fis/shared` compiles standalone against `zod` only (`packages/shared/package.json`, `tsconfig.build.json`); `pnpm -r typecheck` is the root script. Not re-run here.
 - [x] (code) `@fis/shared` exports, from `src/index.ts`, every schema and type named in "Frozen contracts", and `SCORING_WEIGHTS` sums to 1 (`scoring.ts`).
-- [x] (code) `IntelligenceService` is a TypeScript interface with the six methods (`intelligence-port.ts`); `AnthropicProvider` and `HeuristicProvider` implement it.
+- [x] (code) `IntelligenceService` is a TypeScript interface with the six methods (`intelligence-port.ts`); `GeminiProvider` and `HeuristicProvider` implement it.
 - [x] (code) Every endpoint in the API table has a request and a response schema in `api.ts`; controllers validate with `ZodValidationPipe`.
-- [x] (code) `POST /feature-requests` returns a top-level `provider` (not a per-candidate field; ADR 0009); with `ANTHROPIC_API_KEY` unset it is `heuristic` and the web app renders `ProviderBadge` on every AI artefact.
-- [ ] (run) With `ANTHROPIC_API_KEY` unset the API boots, `GET /health` reports `provider: 'heuristic'`, and every intelligence endpoint responds without network access. Code path verified (`intelligence.module.ts`, `HeuristicProvider` has no network client); not run here.
+- [x] (code) `POST /feature-requests` returns a top-level `provider` (not a per-candidate field; ADR 0009); with `GEMINI_API_KEY` unset it is `heuristic` and the web app renders `ProviderBadge` on every AI artefact.
+- [ ] (run) With `GEMINI_API_KEY` unset the API boots, `GET /health` reports `provider: 'heuristic'`, and every intelligence endpoint responds without network access. Code path verified (`intelligence.module.ts`, `HeuristicProvider` has no network client); not run here.
 - [x] (code) No provider or AI-path endpoint changes `status`, `mergedIntoId`, brief `status` or draft `status`; the merge, status, decision and draft PATCH bodies require `decidedBy` / `updatedBy` (`ActorName`, zod).
 - [x] (code) Merge runs in one transaction and re-points or discards source votes (`FeatureRequestMergeService`). Not exercised against a database here.
 - [x] (code) `PATCH /briefs/:id/decision` on a decided brief and `POST /briefs/:id/drafts` on a non-approved brief throw `conflict` (`BriefsService`, `StakeholderDraftsService`).
 - [x] (code) `GlobalExceptionFilter` returns `ErrorEnvelope`; the correlation id echoes a well-formed `x-correlation-id` (pattern `^[A-Za-z0-9._:-]{1,128}$`) or is generated (`correlation-id.middleware.ts`).
 - [x] (code) `GET /feature-requests` defaults to `limit=20`, caps at `100`, returns `{ items, total, page, limit }` (`PaginationQuery`).
-- [x] (code) `AnthropicProvider` zod-validates every output, retries once with the error appended, sets `timeout` and `max_tokens`, reads `ANTHROPIC_MODEL` with default `claude-sonnet-5-5`. Not run against the live API in this repository.
+- [x] (code) `GeminiProvider` zod-validates every output, retries once with the error appended, sets a timeout and an output-token cap, reads `GEMINI_MODEL` with default `gemini-2.5-flash`. Not run against the live API in this repository.
 - [x] (code) Prompts live in `apps/api/prompts/*.md` with a pinned `version:` header; every stored AI artefact carries `promptVersion`. The golden set lives in `apps/api/evals/`.
 - [x] (code) `docs/adr/README.md` indexes ADRs 0001..0009 and each ADR records at least one rejected alternative.
 - [x] (code) `.gitignore` excludes `node_modules`, `dist`, `.next`, `*.sqlite`, `.env`; `.env.example` contains the ten variable names (the original six plus `THROTTLE_WINDOW_SECONDS`, `THROTTLE_LIMIT`, `THROTTLE_STRICT_LIMIT`, `AI_DAILY_CALL_BUDGET`) and no values.
@@ -583,5 +588,5 @@ from the code:
   confirmation checkbox. Pages: `app/(discover)/page.tsx`, `app/submit`,
   `app/requests/[id]`, `app/themes`, `app/triage`.
 - Not implemented: full-text search (search is `LIKE`), auth, any outbound send,
-  automated tests, a live run of the Anthropic path in this repository, a
+  automated tests, a live run of the Gemini path in this repository, a
   dependency CVE audit. Rate limiting is implemented (per IP, in process memory).

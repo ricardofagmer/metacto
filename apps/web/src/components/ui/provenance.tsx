@@ -6,12 +6,12 @@ type ProviderBadgeProps = { provider: Provider; model?: string };
 // ADR 0003: a heuristic result must never read as LLM output, so the label always names its origin.
 export function providerLabel({ provider, model }: ProviderBadgeProps): string {
   if (provider === 'heuristic') return 'Rule-based (heuristic)';
-  return model !== undefined ? `AI - anthropic ${model}` : 'AI - anthropic';
+  return model !== undefined ? `AI - gemini ${model}` : 'AI - gemini';
 }
 
 export function ProviderBadge({ provider, model }: ProviderBadgeProps) {
   return (
-    <Badge tone={provider === 'anthropic' ? 'ai' : 'heuristic'} title="Which engine produced this result">
+    <Badge tone={provider === 'gemini' ? 'ai' : 'heuristic'} title="Which engine produced this result">
       {providerLabel({ provider, model })}
     </Badge>
   );

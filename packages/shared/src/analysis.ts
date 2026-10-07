@@ -36,15 +36,15 @@ export type PriorityScore = z.infer<typeof PriorityScore>;
 
 type ProviderModelFields = { provider: Provider; model?: string | undefined };
 
-// A model id is only meaningful for the Anthropic adapter; the heuristic path must never look like LLM output.
+// A model id is only meaningful for the Gemini adapter; the heuristic path must never look like LLM output.
 export function refineModelMatchesProvider(value: ProviderModelFields, context: z.RefinementCtx): void {
   const hasModel = value.model !== undefined;
-  const isAnthropic = value.provider === 'anthropic';
-  if (hasModel !== isAnthropic) {
+  const isGemini = value.provider === 'gemini';
+  if (hasModel !== isGemini) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['model'],
-      message: "model must be present if and only if provider is 'anthropic'",
+      message: "model must be present if and only if provider is 'gemini'",
     });
   }
 }

@@ -5,7 +5,7 @@ feature requests into a product manager's decision queue. On submit it surfaces 
 duplicates; on demand it extracts the underlying need, scores priority with a per-criterion
 breakdown, clusters requests into themes, drafts a decision brief, and drafts stakeholder
 updates per audience. Every AI step goes through one `IntelligenceService` port with two
-adapters: an Anthropic adapter (tool-use structured output, zod-validated) and an
+adapters: a Gemini adapter (forced function-call structured output, zod-validated) and an
 in-process heuristic adapter (TF-IDF, keyword rules, templates) that runs with no API key.
 Every AI artefact is labelled with the engine that produced it, and every state change
 (merge, status, brief approval, draft approval) is a separate endpoint that records a human
@@ -109,15 +109,15 @@ All variables are optional. `.env.example` at the repo root lists them with thei
 
 | Variable | Default | Effect |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | unset | Unset selects `HeuristicProvider` (no network). Set selects `AnthropicProvider`. Chosen once at boot (`apps/api/src/intelligence/intelligence.module.ts`) |
-| `ANTHROPIC_MODEL` | `claude-sonnet-5-5` | Model id for every Anthropic call |
+| `GEMINI_API_KEY` | unset | Unset selects `HeuristicProvider` (no network). Set selects `GeminiProvider`. Chosen once at boot (`apps/api/src/intelligence/intelligence.module.ts`) |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Model id for every Gemini call |
 | `DATABASE_URL` | `./data/fis.sqlite` | A `postgres://` or `postgresql://` URL switches the TypeORM driver to Postgres; migrations run at boot on both |
 | `PORT` | `3001` | API listen port |
 | `WEB_ORIGIN` | `http://localhost:3000` | CORS allow-origin |
 | `THROTTLE_WINDOW_SECONDS` | `60` | Length of the per-IP rate-limit window (1 to 3600) |
 | `THROTTLE_LIMIT` | `120` | Requests per window per IP on every endpoint (1 to 100000) |
 | `THROTTLE_STRICT_LIMIT` | `20` | Requests per window per IP on `POST /feature-requests` and the four AI endpoints, applied on top of the global limit |
-| `AI_DAILY_CALL_BUDGET` | `500` | Anthropic calls per UTC day per API process; once spent, every capability is answered by the heuristic provider and labelled so. `0` disables the Anthropic path while keeping the key configured (0 to 1000000) |
+| `AI_DAILY_CALL_BUDGET` | `500` | Gemini calls per UTC day per API process; once spent, every capability is answered by the heuristic provider and labelled so. `0` disables the Gemini path while keeping the key configured (0 to 1000000) |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:3001/api/v1` | Web to API base URL (web only); its origin is also allowed in the web CSP `connect-src` |
 
 **The API does not load a `.env` file.** `loadEnv` in `apps/api/src/config/env.service.ts`
@@ -125,18 +125,18 @@ reads `process.env` only and there is no dotenv dependency, so copying `.env.exa
 `.env` has no effect on the API by itself. Export the variables in the shell instead:
 
 ```sh
-ANTHROPIC_API_KEY=sk-... pnpm --filter @fis/api dev
-# optionally: ANTHROPIC_MODEL=<model id>
+GEMINI_API_KEY=... pnpm --filter @fis/api dev
+# optionally: GEMINI_MODEL=<model id>
 ```
 
 The header of the web app shows which provider the API booted with (from `GET /health`), and
-every AI result carries a badge: `Rule-based (heuristic)` or `AI - anthropic <model>`. When
-the daily budget is spent the header still says `anthropic` (health reports the boot-time
+every AI result carries a badge: `Rule-based (heuristic)` or `AI - gemini <model>`. When
+the daily budget is spent the header still says `gemini` (health reports the boot-time
 selection) while new artefacts are labelled `heuristic`; the artefact badge is the honest one.
 
 Other scripts: `pnpm typecheck`, `pnpm lint`, `pnpm build` (root, fan out with `pnpm -r`);
 `pnpm --filter @fis/api eval` (heuristic golden set, offline) and
-`pnpm --filter @fis/api eval:anthropic` (requires `ANTHROPIC_API_KEY`).
+`pnpm --filter @fis/api eval:gemini` (requires `GEMINI_API_KEY`).
 
 ## Request lifecycle
 
@@ -145,8 +145,8 @@ From submission to a human decision. Thick-bordered boxes are human actions; AI 
 ```mermaid
 flowchart TD
     A[Submitter posts title + description] --> B[POST /feature-requests]
-    B --> C{Anthropic available and daily budget left?}
-    C -- yes --> D[AnthropicProvider: dedupe via tool-use, zod-validated]
+    B --> C{Gemini available and daily budget left?}
+    C -- yes --> D[GeminiProvider: dedupe via forced function call, zod-validated]
     C -- no or unavailable --> E[HeuristicProvider: TF-IDF, calibrated threshold]
     D --> F[Duplicate candidates + provider label]
     E --> F
@@ -203,22 +203,22 @@ flowchart LR
     BR["BriefsService / StakeholderDraftsService\ndraftBrief, draftStakeholderMessage"]
     PORT["IntelligenceService port\n(@fis/shared, 6 methods, zod I/O)"]
     BUDGET["BudgetedIntelligence\nDailyCallBudget: AI_DAILY_CALL_BUDGET per UTC day, in memory\nreserves before each paid call"]
-    ANTH["AnthropicProvider\n1 side-effect-free tool per call\nzod + semantic checks, 1 corrective retry\nrequest text escaped in <request> blocks\nrefs r1..rN, TF-IDF pool of 40\n30 s timeout, max_tokens per capability"]
+    GEM["GeminiProvider\n1 forced side-effect-free function call per request\nzod + semantic checks, 1 corrective retry\nrequest text escaped in <request> blocks\nrefs r1..rN, TF-IDF pool of 40"]
     HEUR["HeuristicProvider\nTF-IDF cosine (calibrated 0.267 -> 0.6)\navg-linkage clustering (0.2)\nkeyword scoring rules, templates\nno network"]
     SCORE["computePriorityScore (@fis/shared)\nweights constant, app-side total\ndemand = votes / maxVotes"]
     DB[("SQLite (default) | Postgres\nvia DATABASE_URL")]
   end
-  CLAUDE["Anthropic Messages API\nmodel: ANTHROPIC_MODEL\n(default claude-sonnet-5-5)"]
+  GEMAPI["Google Gemini API (@google/genai)\nmodel: GEMINI_MODEL\n(default gemini-2.5-flash)"]
 
   UI -->|HTTP JSON, zod-parsed| RL
   RL --> FR & AN & TH & BR
   FR & AN & TH & BR --> PORT
   PORT --> BUDGET
-  BUDGET -->|ANTHROPIC_API_KEY set, budget left| ANTH
+  BUDGET -->|GEMINI_API_KEY set, budget left| GEM
   BUDGET -->|key unset, or budget spent: labelled heuristic| HEUR
   FR -.->|submit-time fallback on IntelligenceUnavailableError| HEUR
-  ANTH --> CLAUDE
-  ANTH --> SCORE
+  GEM --> GEMAPI
+  GEM --> SCORE
   HEUR --> SCORE
   FR & AN & TH & BR --> DB
 ```
@@ -234,38 +234,46 @@ flowchart LR
 schema-valid result. The provider is selected once at boot. Feature modules do not call
 the boot-selected provider directly: they inject `BUDGETED_INTELLIGENCE_SERVICE`
 (`apps/api/src/ai-budget/`), a wrapper that reserves one unit of the daily call budget
-before each Anthropic call (a failed or timed-out call still counts) and routes every
+before each Gemini call (a failed or timed-out call still counts) and routes every
 capability to `HeuristicProvider` for the rest of the UTC day once `AI_DAILY_CALL_BUDGET`
 is spent. The output keeps the label of the provider that actually produced it. With no
 key configured nothing is metered.
 
-### AnthropicProvider (`apps/api/src/intelligence/providers/anthropic/`)
+### GeminiProvider (`apps/api/src/intelligence/providers/gemini/`)
 
-- **Structured output by tool use.** Each call offers exactly one tool whose `input_schema` is
-  generated from the output zod schema (`anthropic-tools.ts`, `zod-json-schema.ts`). The
-  tools are named `record_*` and have no side effects. `tool_choice` is
-  `{ type: 'auto', disable_parallel_tool_use: true }` because the current model rejects a
-  forced tool choice; a response with no tool call is treated as a validation failure.
-- **Validation and one corrective retry.** The tool input is parsed with the zod schema, then
-  checked semantically (`checkCandidateRefs`, `checkThemeRefs`: every ref exists in the input
-  and none repeats). A failure is fed back as an `is_error` `tool_result` and the model gets
-  one more attempt (`MAX_ATTEMPTS = 2` in `anthropic-structured-call.ts`). A second failure
-  throws `IntelligenceUnavailableError`; a `refusal` stop reason throws immediately.
+The adapter uses the `@google/genai` SDK. It replaced the earlier Anthropic adapter on
+2026-10-06 (ADR 0003).
+
+- **Structured output by one forced function call.** Each request offers exactly one
+  function whose schema is derived from the capability's output zod schema
+  (`gemini-tools.ts`), and function calling is forced with `FunctionCallingConfigMode.ANY`
+  and a single `allowedFunctionNames` entry. `gemini-json-schema.ts` converts the schema to
+  the keyword subset Gemini supports; length and pattern constraints that the subset cannot
+  express go into the field description text. The function has no side effects: it only
+  records the model's output. The prompts already tell the model to respond by calling the
+  function. A response with no call is treated as a validation failure.
+- **Validation and one corrective retry.** The call arguments are parsed with the zod schema,
+  then checked semantically (`checkCandidateRefs`, `checkThemeRefs`: every ref exists in the
+  input and none repeats); zod and these checks are the trust boundary, not the Gemini
+  schema. A failure is fed back by sending the model turn back (thought signatures kept)
+  plus a `functionResponse` carrying the validation error, and the model gets one more
+  attempt. A second failure throws `IntelligenceUnavailableError`.
+- **Thinking budget.** `thinkingBudget` is 512 for the capability calls and 256 for the
+  need judge.
 - **Untrusted data delimiting (ADR 0006).** Request text enters prompts only inside
   `<request ref="rN">` blocks with `<`, `>` and `&` escaped (`prompt-data.ts`), so text cannot
   close its own block. Every system prompt (`apps/api/prompts/*.md`) states that block content
   is data, never instructions. Author names are never sent to the model.
 - **Short refs, bounded pool.** Corpus entries are referenced as `r1..rN`; the tool schemas
-  accept only `^r\d+$`. For `findDuplicates` and `analyze`, TF-IDF preselects at most 40
+  accept only `^r\d+$` (the schema is checked by zod on our side). For `findDuplicates` and `analyze`, TF-IDF preselects at most 40
   candidates (`CANDIDATE_POOL_SIZE`) and the model judges only those. Threshold, ordering and
   limit are re-applied by the application after the call.
 - **Scores are computed by the app.** The model returns `reach`, `impact`, `strategicFit`,
   `effortInverse` and a rationale; `demand` is `voteCount / maxVoteCount` and the total is
   `computePriorityScore` from `@fis/shared`. `FeatureRequestAnalysisService` recomputes the
   total again before storing, so a provider cannot bend the score (ADR 0007).
-- **Bounds and logging.** SDK client with `timeout: 30_000` and `maxRetries: 2` (transport
-  retries), `max_tokens` per capability (2048 to 4096), `output_config: { effort: 'low' }`.
-  Every attempt logs `intelligence.call` with provider, capability, prompt version, model,
+- **Bounds and logging.** Each call is bounded by a timeout and an output-token cap (see the
+  provider source for the current values). Every attempt logs `intelligence.call` with provider, capability, prompt version, model,
   attempt, duration, token counts and outcome. Prompt text and model output never reach logs.
 - **Prompts are versioned files** under `apps/api/prompts/` with a `version:` front matter
   (`dedupe@1`, `analyze@1`, ...) and a changelog; every stored artefact carries
@@ -293,7 +301,7 @@ key configured nothing is metered.
 
 - **Not an autonomous agent.** Every output feeds a human decision; there is no multi-step
   action to delegate. One structured call per capability is inspectable, cheap, and evaluable
-  against a golden set. The only "tool" the model ever sees records its own output.
+  against a golden set. The only function the model can call records its own output and has no side effects; the application validates what it returns.
 - **Not embeddings-only.** Embedding similarity is a good first-pass signal for duplicates and
   clusters, but it cannot state the underlying need, name a theme, explain a score or draft a
   brief. Those are generation tasks. A vector store would also make the no-key path impossible
@@ -301,7 +309,7 @@ key configured nothing is metered.
 - **A port with two adapters** keeps the demo runnable with zero setup, gives the model path a
   measured floor, and makes the fallback honest: every artefact is labelled, so a heuristic
   result is never mistaken for model quality.
-- **Model choice:** `claude-sonnet-5-5` by default, configurable with `ANTHROPIC_MODEL`.
+- **Model choice:** `gemini-2.5-flash` by default, configurable with `GEMINI_MODEL`.
 
 ### Fallback scope
 
@@ -380,10 +388,10 @@ What those numbers mean, honestly:
   the tokenizer, synonym table or golden set changes.
 - The heuristic need extraction fails the implicit-goal case because it quotes the requester
   verbatim; the model path is scored by an LLM judge instead.
-- **The Anthropic path has not been run live.** The adapter and the judge are typechecked
-  and reviewed, but this repository has no `ANTHROPIC_API_KEY` in CI and
-  `RESULTS.anthropic.md` does not exist. Before trusting the model path, run
-  `ANTHROPIC_API_KEY=... pnpm --filter @fis/api eval:anthropic` locally (about 20 model calls
+- **The Gemini path has not been run live.** The adapter and the judge are typechecked
+  and reviewed, but this repository has no `GEMINI_API_KEY` in CI and
+  `RESULTS.gemini.md` does not exist. Before trusting the model path, run
+  `GEMINI_API_KEY=... pnpm --filter @fis/api eval:gemini` locally (about 20 model calls
   plus 2 judge calls).
 
 ## Architecture decisions and tradeoffs
@@ -396,11 +404,11 @@ Full records are in `docs/adr/` (nine ADRs, indexed in `docs/adr/README.md`).
 | Authentication (ADR 0005, amended) | None. Anonymous `voterKey` in `localStorage`; PM role is a UI toggle; `decidedBy` is free text. After the security review: per-IP rate limit, daily AI call budget, JSON content-type gate against cross-site requests | Email + password; IP-based vote dedupe; shared secret header | Votes can be stuffed with arbitrary `voterKey` values up to the rate limit; merge, status and approvals are anonymous and merge cannot be undone; the whole API is open on the configured origin. Production path: SSO + RBAC, `decidedBy` from the session |
 | Search | SQL `LOWER(...) LIKE :pattern ESCAPE '\'` over title and description with escaped wildcards (`feature-requests.repository.ts`) | Full-text index; vector search | Substring match only, no ranking or stemming; fine for hundreds to low thousands of rows, which is the PRD's assumed volume |
 | Repository layout (ADR 0001) | One pnpm workspace: `apps/api`, `apps/web`, `packages/shared` with frozen zod contracts | Two repos with a published contracts package; Next.js route handlers as the API | A contract change is one PR touching shared plus both consumers; strict hoisting means every package declares its own deps |
-| Dedupe on submit | Synchronous `findDuplicates` inside `POST /feature-requests`, after the insert, with heuristic fallback | Background job; live hints while typing | The submit response waits for the model call (up to 30 s timeout on the Anthropic path); AI failure never fails the submit, and the response is labelled with the engine that answered |
-| AI boundary (ADR 0003, 0004, 0006) | One port, two adapters, structured tool output, request text as delimited data, humans own every state transition | Anthropic-only; regex-parsed completions; silent fallback; auto-merge above a threshold; a DB tool for the model | More endpoints than CRUD; a capability change touches the interface and both adapters |
+| Dedupe on submit | Synchronous `findDuplicates` inside `POST /feature-requests`, after the insert, with heuristic fallback | Background job; live hints while typing | The submit response waits for the model call (bounded by the Gemini call timeout); AI failure never fails the submit, and the response is labelled with the engine that answered |
+| AI boundary (ADR 0003, 0004, 0006) | One port, two adapters, structured JSON output, request text as delimited data, humans own every state transition | Gemini-only; regex-parsed completions; silent fallback; auto-merge above a threshold; a DB tool for the model | More endpoints than CRUD; a capability change touches the interface and both adapters |
 | Scoring (ADR 0007) | `SCORING_WEIGHTS` constant; the app computes the total from the breakdown | DB-stored editable weights; model-produced totals; per-env weights | Changing a weight is a code change; all stored scores stay recomputable from their breakdowns |
-| Heuristic threshold (ADR 0008) | Calibrated anchor mapping raw cosine onto the port's 0.6 scale | Lowering the shared default for both providers; embeddings for the no-key path | Heuristic and Anthropic similarities are on one nominal scale but mean different things; the provider badge tells the reader which. Note: ADR 0008's text rejects rescaling and says "implementation pending"; the code implements the rescaling and the ADR has not been updated |
-| Provenance (ADR 0009, amended) | `provider` (and `model` iff anthropic) on every artefact and on the submit, list, cluster and health responses; `decided_by` / `decided_at` / `decision_note` columns on `feature_requests`; since the security review, an append-only `feature_request_decisions` table written in the merge and status transactions | `isFallback` boolean; per-candidate provider | The three audit columns on requests are DB-only and the decisions table has no endpoint; the `FeatureRequest` API schema does not expose them yet |
+| Heuristic threshold (ADR 0008) | Calibrated anchor mapping raw cosine onto the port's 0.6 scale | Lowering the shared default for both providers; embeddings for the no-key path | Heuristic and Gemini similarities are on one nominal scale but mean different things; the provider badge tells the reader which. Note: ADR 0008's text rejects rescaling and says "implementation pending"; the code implements the rescaling and the ADR has not been updated |
+| Provenance (ADR 0009, amended) | `provider` (and `model` iff gemini) on every artefact and on the submit, list, cluster and health responses; `decided_by` / `decided_at` / `decision_note` columns on `feature_requests`; since the security review, an append-only `feature_request_decisions` table written in the merge and status transactions | `isFallback` boolean; per-candidate provider | The three audit columns on requests are DB-only and the decisions table has no endpoint; the `FeatureRequest` API schema does not expose them yet |
 
 ## Assumptions, risks and known limitations
 
@@ -414,13 +422,13 @@ Stated plainly, from the code:
 - **Rate limiting and AI spend are bounded per process, not per caller.** `RateLimitGuard`
   applies a per-IP fixed window to every endpoint (`THROTTLE_LIMIT` 120 per
   `THROTTLE_WINDOW_SECONDS` 60 by default) and a stricter one (`THROTTLE_STRICT_LIMIT` 20)
-  to `POST /feature-requests` and the four AI endpoints; `DailyCallBudget` caps Anthropic
+  to `POST /feature-requests` and the four AI endpoints; `DailyCallBudget` caps Gemini
   calls at `AI_DAILY_CALL_BUDGET` (500) per UTC day, after which the heuristic provider
   answers with its own label. Both live in process memory: a restart resets them, N
   instances allow N times the limit, clients behind one proxy or NAT share one bucket
   (`trust proxy` is off, so the socket address is the key), and a fixed window allows a
   2x burst at the boundary. The budget counts calls, not tokens. `GET /health` keeps
-  reporting the boot-time provider after the budget is spent. With `ANTHROPIC_API_KEY` set,
+  reporting the boot-time provider after the budget is spent. With `GEMINI_API_KEY` set,
   an anonymous caller can still spend up to the budget every day; do not expose this
   deployment beyond a trusted network.
 - **Vote stuffing is possible.** The API accepts any `voterKey` of 8 to 64 characters; a
@@ -435,7 +443,7 @@ Stated plainly, from the code:
   injected inline script. HSTS is sent by the web app only in production.
 - **Not scanned.** No dependency CVE audit was run and nothing in the repository records
   one.
-- **The Anthropic path is untested live** (see [Evaluation results](#evaluation-results)).
+- **The Gemini path is untested live** (see [Evaluation results](#evaluation-results)).
 - **Heuristic limits.** Bag-of-words cannot separate same-topic near misses (the
   password-reset family); the separation margin is 0.008; need extraction quotes the
   requester instead of inferring the goal; scoring is keyword rules with a documented base and
@@ -452,13 +460,14 @@ Stated plainly, from the code:
 - **Clustering is a full replace.** Re-clustering deletes membership and rebuilds it in one
   transaction; a theme referenced by a brief is kept but hidden once it has no members, so a
   brief may point at a theme that is no longer listed.
-- **Submit waits for dedupe.** On the Anthropic path a slow model call delays the submit
-  response by up to the 30 s client timeout before falling back.
+- **Submit waits for dedupe.** On the Gemini path a slow model call delays the submit
+  response by up to the client timeout before falling back.
 - **Documents that overstate the code.** The PRD describes live duplicate hints while typing
   and a `source` field (customer, prospect, support, sales); the code shows candidates after
   submit and has no `source` field. The PRD says every capability falls back to the heuristic;
-  only submit-time dedupe does. The spec names a forced `tool_choice`; it is `auto` (ADR 0003
-  amendments). The spec places the golden set under `apps/api/src/intelligence/evals/`; it is
+  only submit-time dedupe does. ADR 0003's original text (and the earlier code) describe
+  Anthropic tool-use structured output; the first provider is now Gemini forced function
+  calling (ADR 0003 dated note). The spec places the golden set under `apps/api/src/intelligence/evals/`; it is
   at `apps/api/evals/`. ADR 0008 is marked "implementation pending" and rejects rescaling,
   which the code now does. ADRs 0002, 0005 and 0009 carry "Amendments" sections
   reconciling them with the post-review code rather than rewritten text.
@@ -535,7 +544,7 @@ workspace. What the repository records, without overclaiming:
 |       |-- analyses/            stored analyses, priority provenance for the list
 |       |-- themes/              clustering and theme read-back
 |       |-- briefs/              decision briefs, decisions, stakeholder drafts
-|       |-- intelligence/        port wiring, prompts loader, providers/anthropic, providers/heuristic
+|       |-- intelligence/        port wiring, prompts loader, providers/gemini, providers/heuristic
 |       `-- health/              GET /health: database up/down, provider, version
 `-- apps/web/src/
     |-- app/                     (discover)/, submit/, requests/[id]/, themes/, triage/
@@ -578,7 +587,7 @@ is echoed or generated. Endpoints marked "strict" below share the stricter per-I
 
 - **Demo script:** [`docs/demo.md`](docs/demo.md) is the five-minute Loom walkthrough
   (submit a near-duplicate, vote instead, analyze, re-cluster, merge, brief, approve, draft),
-  with the exact commands and the choice between the heuristic and Anthropic path. It is the
+  with the exact commands and the choice between the heuristic and Gemini path. It is the
   FIS-15 deliverable.
 - **Security review:** [`docs/security-review.md`](docs/security-review.md) records the
   review verdict, the findings by severity, the fixes that landed with the code they live
